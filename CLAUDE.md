@@ -275,13 +275,18 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   about 37 s and said Augusta "is not named; unclear", so the prompt fix holds. Approve, then
   package (about 26 s, all agent drafts passed), then send: 72 messages. Chain verified.
 - Deployment: `Dockerfile` (python:3.12-slim, non-root, a single uvicorn process on purpose)
-  and `docker-compose.yml` (port 80 -> 8000, `env_file: .env`, healthcheck on /healthz).
-  `scripts/deploy.sh root@IP` installs Docker from Ubuntu's packages (docker.io,
-  docker-compose-v2) if missing and ships `git archive HEAD` to /opt/closure-call, so only
-  committed code goes and .env is never inside the image or the archive. It then copies .env
-  by scp (chmod 600), sets BASE_URL, MONITOR_MINUTES (default 15) and MONITOR_DAY (default
-  tomorrow), runs `docker compose up -d --build`, and polls /healthz. Commit before
-  deploying.
+  and `docker-compose.yml`. Caddy (caddy:2.8) serves HTTPS on 443 with an automatic Let's
+  Encrypt certificate for $DOMAIN and redirects port 80. The app listens only on the
+  internal network (port 8000). Certificates persist in the `caddy_data` volume.
+- `scripts/deploy.sh root@IP [domain]`. The domain defaults to `<ip-with-dashes>.sslip.io`
+  (free wildcard DNS; a team-owned domain with an A record looks better). The script
+  installs Docker from Ubuntu's packages (docker.io, docker-compose-v2) if missing and ships
+  `git archive HEAD` to /opt/closure-call, so only committed code goes and .env is never in
+  the image or archive. It copies .env by scp (chmod 600) and appends DOMAIN, BASE_URL
+  (https), MONITOR_MINUTES (default 15) and MONITOR_DAY (default tomorrow). Then it runs
+  `docker compose up -d --build` and polls https://DOMAIN/healthz. Commit before deploying.
+  The firewall must allow TCP 22, 80 and 443. Enable Linode disk encryption if the region
+  offers it.
 - The agent once claimed the Augusta facility was "in the Lincoln valley". The prompts now
   forbid assuming a facility is inside a named area. Watch for this kind of geographic
   inference in demos.

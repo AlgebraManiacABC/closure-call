@@ -1,0 +1,7 @@
+# Caddy terminates HTTPS with an automatic Let's Encrypt certificate for $DOMAIN and redirects
+# plain HTTP to HTTPS. The app itself is not exposed to the internet.
+{$DOMAIN} {
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy app:8000
+}
