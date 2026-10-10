@@ -1,7 +1,7 @@
 # Closure Call: project context
 
 Hack Midwest 2026 project (Kansas City, Oct 10-11). This file records the decisions made
-during planning so far. Nothing beyond the endpoint check script has been built yet.
+during planning and what has been built so far (see Repo state).
 
 ## Deadlines and rules
 
@@ -131,6 +131,21 @@ Reference repo: https://github.com/akamai-developers/akamai-workshop-hackmidwest
   point or zone. Alerts carry structured severity, certainty and urgency fields.
 - USGS water services: public, no key. River gauge readings and flood stage.
 
+Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py`):
+- Alert `parameters` almost never carry magnitudes (gust mph, snow inches). Those come
+  from the free text, which is the agent's job, or from the gridpoint forecast.
+- `/gridpoints/{wfo}/{x},{y}` gives numeric series: windGust, snowfallAmount,
+  iceAccumulation, windChill, potentialOfNNmphWindGusts. Units are km/h, mm and degC,
+  converted to mph, in and F in `nws.py`. This is the structured source for magnitude
+  thresholds.
+- NOAA NWPS (api.water.noaa.gov/nwps/v1) is the main flood-gauge source: NWS-defined
+  action/minor/moderate/major stages per gauge, current category, crest forecast, upstream
+  gauge. USGS IV is a raw cross-check. The USGS legacy API has no flood stages.
+- `/alerts/active?point=` resolves zones and polygons itself. Wind and winter alerts are
+  zone-based (no geometry); flood warnings have polygons along rivers, so a town next to a
+  flooding river may have no alert. `scripts/check_sources.py --hotspots` lists re-pin
+  coordinates per hazard that do fall inside an alert.
+- The local venv is Python 3.11.9, not 3.12.
 
 ## Planned timeline
 
@@ -142,6 +157,8 @@ Reference repo: https://github.com/akamai-developers/akamai-workshop-hackmidwest
 ## Repo state
 
 - `scripts/check_endpoint.py`: endpoint and Strands check (passing).
+- `app/sources/`: NWS, NWPS/USGS and hotspot clients. Each fetch returns `Fetched` (raw
+  body, URL, UTC time) for the decision record. `scripts/check_sources.py` exercises them.
 - `.env.example`, `requirements.txt`, `.gitignore`, `README.md`.
 - `.env` holds the team key and is gitignored. Never commit it or print the key.
 
