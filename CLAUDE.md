@@ -251,6 +251,29 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   stay out of the Akamai record. `tests/test_notify.py` covers each posture's rules.
 - Live Montana run (2-hour delay override): 36 notified, 4 skipped, 8 personal notes, all 4
   agent drafts passed the checks, 74 outbox messages, chain verified.
+- Web app (`app/web.py`, FastAPI + Jinja2 templates in `app/templates`, CSS in
+  `app/static/style.css`, no JS framework). Pages:
+  - `/manager`: location picker, "Check now", recent evaluations, alerts to the manager;
+  - `/e/{id}`: the decision page. Posture card, agent rationale and verified quotes, drivers
+    with sources, hourly strip, what-would-change, approve/override, notification package
+    and "Approve and send", Q&A, inputs and raw responses, ledger timeline, replay;
+  - `/outbox`: simulated messages and manager alerts;
+  - `/history`: reviewer table, with verify-chain;
+  - `/raw/{fetch_id}` and `/healthz`.
+  A role cookie (manager or reviewer) hides the forms for reviewers.
+- `app/service.py`: shared steps. "Check now" records the engine result in about 5 s; the
+  agent and the package drafting run in background threads, and the page reloads every 4 s
+  via `location.reload()` (meta refresh does not reload when the URL has a #fragment).
+- Monitor: `MONITOR_MINUTES` > 0 starts a background loop. It alerts the manager (a simulated
+  SMS, recorded as a `manager_alert` event) only when a non-normal posture first appears or
+  changes, or the deadline is within an hour with no decision. Its memory is keyed by pin
+  and day, because all pins share one facility id, and is in memory (reset on restart).
+  `MONITOR_DAY=tomorrow` watches the next calendar day, for the Sunday demo.
+- Run locally: `python scripts/serve.py --db local` (`.claude/launch.json` has this as
+  `closure-call-dev`). The chosen location is in memory and resets to flood_iowa on restart.
+- Browser test Oct 10 (phone width): Montana for Sunday gave a closure. The agent finished in
+  about 37 s and said Augusta "is not named; unclear", so the prompt fix holds. Approve, then
+  package (about 26 s, all agent drafts passed), then send: 72 messages. Chain verified.
 - The agent once claimed the Augusta facility was "in the Lincoln valley". The prompts now
   forbid assuming a facility is inside a named area. Watch for this kind of geographic
   inference in demos.

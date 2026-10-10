@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ facility.display_name }}</h1>
+  <p class="muted">{{ facility.pin.lat }}, {{ facility.pin.lon }} &middot; {{ facility.pin.time_zone }} &middot;
+    open {{ facility.open.strftime("%H:%M") }}&ndash;{{ facility.close.strftime("%H:%M") }} &middot; {{ state.roster|length }} people on roster</p>
+  <form method="post" action="/preset" class="inline">
+    <label>Location
+      <select name="preset" onchange="this.form.submit()">
+        {% for key, p in facility.presets.items() %}
+        <option value="{{ key }}" {{ 'selected' if facility.pin.label == p.label }}>{{ p.label }} ({{ key.split('_')[0] }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button>Move</button></noscript>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Check conditions now</h2>
+  <form method="post" action="/check" class="stack" onsubmit="this.querySelector('button').textContent='Fetching NWS, river and USGS data...'">
+    <label>Decision for
+      <select name="day">
+        <option value="next">Next operating day ({{ next_day.strftime("%a %b %d") }})</option>
+        <option value="tomorrow">Tomorrow ({{ tomorrow.strftime("%a %b %d") }}), as if open</option>
+        <option value="today">Today ({{ today.strftime("%a %b %d") }}), as if open</option>
+      </select>
+    </label>
+    <button class="primary big">Check now</button>
+  </form>
+  <p class="muted small">Pulls live NWS alerts and forecast, NOAA river gauges and USGS readings, runs the rules,
+    and records everything. The AI investigation follows in about 40 seconds.</p>
+</section>
+
+{% if alerts %}
+<section class="card">
+  <h2>Recent alerts to you</h2>
+  {% for a in alerts %}
+  <div class="sms"><div class="meta">Text to {{ a.payload.to }} &middot; {{ a.at|t(facility.pin.time_zone) }}</div>{{ a.payload.body }}</div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Recent evaluations</h2>
+  {% if not recent %}<p class="muted">None yet. Run a check.</p>{% endif %}
+  <ul class="list">
+  {% for h in recent %}
+    <li>
+      <a href="/e/{{ h.evaluation_id }}"><span class="dot {{ h.recommended }}"></span>
+        {{ POSTURE_NAMES[h.recommended] }} for {{ h.day }}</a>
+      <span class="muted small">{{ h.at|t(facility.pin.time_zone) }} &middot;
+        {% if h.decision %}{{ DID[h.decision.action] }}: {{ h.decision.label }}{% else %}awaiting decision{% endif %}</span>
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

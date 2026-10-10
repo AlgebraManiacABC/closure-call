@@ -183,7 +183,7 @@ class Store:
             c.execute(rule_sets.insert().values(version=version, created_at=now_iso(), content=content))
 
     def record_evaluation(self, inputs: Inputs, rec: Recommendation, fetched: list[Fetched],
-                          thresholds_path: Path = THRESHOLDS_PATH) -> EntryRef:
+                          thresholds_path: Path = THRESHOLDS_PATH, actor: str = "system") -> EntryRef:
         content = thresholds_text(thresholds_path)
         version = rules_version(content)
         if rec.rules_version and rec.rules_version != version:
@@ -194,7 +194,7 @@ class Store:
             metas = self._store_fetches(c, evaluation_id, fetched)
             payload = {"rules_version": version, "raw_fetches": metas,
                        "inputs": inputs.model_dump(mode="json"), "recommendation": rec.model_dump(mode="json")}
-            return self._append("evaluation", inputs.facility_id, payload, "system", evaluation_id=evaluation_id,
+            return self._append("evaluation", inputs.facility_id, payload, actor, evaluation_id=evaluation_id,
                                 day=str(inputs.day), posture=rec.posture, entry_id=evaluation_id, conn=c)
 
     def record_agent_report(self, evaluation_id: str, report: AgentReport, fetched: list[Fetched]) -> EntryRef:
@@ -256,6 +256,21 @@ class Store:
         return self._append("notification_package", decision["facility_id"],
                             {"decision_hash": decision["hash"], "package": package.model_dump(mode="json")},
                             "system", evaluation_id=evaluation_id, day=decision["day"], posture=package.decided.posture)
+
+    def record_manager_alert(self, evaluation_id: str, reason: str, manager: str, phone: str, body: str) -> EntryRef:
+        """The app prompting the facility manager (simulated text) because something changed."""
+        ev = self._get_entry(evaluation_id, "evaluation")
+        return self._append("manager_alert", ev["facility_id"],
+                            {"reason": reason, "to": manager, "phone": phone, "channel": "sms", "body": body,
+                             "mode": "simulated"}, "monitor", evaluation_id=evaluation_id, day=ev["day"],
+                            posture=ev["posture"])
+
+    def outbox(self, limit: int = 200) -> list[dict]:
+        """Everything the system has 'sent' (simulated): employee notices and manager alerts, newest first."""
+        with self.engine.connect() as c:
+            rows = c.execute(sa.select(ledger).where(ledger.c.kind.in_(["notifications_sent", "manager_alert"]))
+                             .order_by(ledger.c.seq.desc()).limit(limit)).all()
+        return [self._row(r) for r in rows]
 
     def record_send(self, evaluation_id: str, approved_by: str) -> tuple[EntryRef, list]:
         """The manager approves sending. Messages go to the simulated outbox; nothing leaves the system."""

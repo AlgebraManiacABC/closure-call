@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Decision history: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Decision history</h1>
+  <p class="muted">What was known, when, and what was decided. Every entry is append-only and hash-chained.</p>
+  {% if verify %}
+    <p class="{{ 'ok' if verify.ok else 'bad' }}"><b>Chain {{ "verified" if verify.ok else "BROKEN" }}</b>:
+      {{ verify.entries }} entries, head <code>{{ verify.head[:16] }}</code>.</p>
+    {% for p in verify.problems %}<p class="bad small">{{ p }}</p>{% endfor %}
+  {% else %}
+    <p><a class="button" href="?verify=1">Verify the whole record</a></p>
+  {% endif %}
+</section>
+<section class="card wide">
+  <table class="history">
+    <tr><th>Evaluated</th><th>Facility day</th><th>Recommended</th><th>Decided</th><th>Notes</th></tr>
+    {% for h in rows %}
+    <tr>
+      <td><a href="/e/{{ h.evaluation_id }}">{{ h.at|t(tz) }}</a></td>
+      <td>{{ h.day }}</td>
+      <td><span class="dot {{ h.recommended }}"></span>{{ POSTURE_NAMES[h.recommended] }}</td>
+      <td>{% if h.decision %}
+            <span class="{{ 'override' if h.decision.action == 'override' }}">{{ DID[h.decision.action] }}: {{ h.decision.label }}</span>
+            <div class="muted small">{{ h.decision.by }}</div>
+            {% if h.decision.reason %}<div class="small">&ldquo;{{ h.decision.reason }}&rdquo;</div>{% endif %}
+          {% else %}<span class="muted">no decision</span>{% endif %}</td>
+      <td class="small">{{ "agent" if h.agent }}{% if h.questions %} &middot; {{ h.questions }} question{{ "s" if h.questions > 1 }}{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">No evaluations yet.</td></tr>{% endfor %}
+  </table>
+</section>
+{% endblock %}

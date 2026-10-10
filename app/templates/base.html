@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Closure Call{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ CSS_VERSION }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">Closure Call</a>
+  <nav>
+    {% if role == "manager" %}<a href="/manager">Decide</a>{% endif %}
+    <a href="/outbox">Outbox</a>
+    <a href="/history">History</a>
+  </nav>
+  <div class="role">
+    <span>View as</span>
+    <a href="/role/manager" class="{{ 'on' if role == 'manager' }}">Manager</a>
+    <a href="/role/reviewer" class="{{ 'on' if role == 'reviewer' }}">Reviewer</a>
+  </div>
+</header>
+<main>
+  {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer>The system recommends; a person decides. Sending is simulated. Data: NWS, NOAA NWPS, USGS.</footer>
+</body>
+</html>

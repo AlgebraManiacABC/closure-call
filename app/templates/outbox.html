@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Outbox: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Outbox</h1>
+  <p class="muted">Every message the system would have sent, in the order it was approved. Sending is simulated: nothing leaves the system.
+    {% if only %}<a href="/outbox">Show all</a>{% endif %}</p>
+</section>
+{% for e in entries %}
+<section class="card">
+  {% if e.kind == "manager_alert" %}
+    <h2>Alert to the facility manager</h2>
+    <p class="muted small">{{ e.at|t(tz) }} &middot; {{ e.payload.reason }}</p>
+    <div class="sms"><div class="meta">Text to {{ e.payload.to }} ({{ e.payload.phone }})</div>{{ e.payload.body }}</div>
+  {% else %}
+    {% set msgs = e.payload.messages %}
+    <h2>{{ msgs|length }} messages &middot; {{ e.posture|replace("_", " ") }}</h2>
+    <p class="muted small">Approved by {{ e.actor }} &middot; {{ e.at|t(tz) }} &middot; <a href="/e/{{ e.evaluation_id }}">decision</a></p>
+    {% for m in msgs %}
+      {% if m.channel == "sms" %}
+      <div class="sms"><div class="meta">Text to {{ m.name }} &middot; {{ m.to }}</div>{{ m.body }}</div>
+      {% else %}
+      <details class="emailbox"><summary>Email to {{ m.name }} &middot; {{ m.subject }}</summary><pre class="email">{{ m.body }}</pre></details>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+</section>
+{% else %}
+<section class="card"><p class="muted">Nothing sent yet.</p></section>
+{% endfor %}
+{% endblock %}
