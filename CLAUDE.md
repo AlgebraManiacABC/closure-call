@@ -112,7 +112,7 @@ Core principle: plain code decides, AI investigates and explains.
 - Chat alias: `hackathon-chat`. Backing model reported as `Qwen/Qwen3.8-27B-FP8`.
 - `scripts/check_endpoint.py` passed on Oct 10: a Strands agent using
   `strands.models.openai.OpenAIModel` called one tool correctly through this endpoint.
-  Multi-step, multi-tool runs have not been tested.
+  Multi-step, multi-tool runs with structured output also work (see `app/agent.py`).
 - Limits: 32,768-token context; output defaults to 512 tokens, so always set
   `max_tokens` (maximum 4,096); 60 requests and 100,000 tokens per minute shared by the
   whole team.
@@ -182,12 +182,28 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   before, alerts, gauge with NWS impact statements, sources with URL and fetch time).
   `scripts/evaluate.py --preset X --day YYYY-MM-DD|today|tomorrow [--json f]` runs both.
   `tests/test_rules.py` has synthetic tests; run with `python tests/test_rules.py`.
-- Live results on Oct 10: flood_iowa gives unscheduled leave (0.1 ft below major stage);
-  winter_montana on Mon Oct 12 gives a 3-hour delay; wind_carolina on Sun gives a 2-hour
-  delay. The wind and winter results come from alerts alone, because the forecast at the pin
-  is below warning level, so their confidence is medium.
-- Known simplification: a flood hazard ends the hour the river drops below stage. There is no
-  recession lag yet, unlike snow and ice.
+- Flood stages are held for 12 h (`flood_recession_hours`, an assumption) so a falling river
+  does not clear the hazard the same hour.
+- Live results on Oct 10: flood_iowa on Sun gives a 2-hour delay (major stage until Sat
+  evening, plus the 12 h hold); winter_montana on Mon Oct 12 gives a 3-hour delay;
+  wind_carolina on Sun gives a 2-hour delay. The wind and winter results come from alerts
+  alone, because the forecast at the pin is below warning level, so their confidence is
+  medium.
+- `app/agent.py`: the Strands agent (`investigate`) runs only for non-normal postures. It has
+  4 tools: read_alert, record_evidence (plain code rejects any quote not found word for word in
+  the alert), what_if (re-runs the engine), and lookup (commute_hours, observation,
+  upstream_river). It returns an `AgentReport` with the rationale (structured output),
+  caveats, evidence, lookups and what-ifs. If the model fails, it falls back to the engine's
+  template summary. `answer_question` answers manager questions from recorded inputs only
+  (no network). Alerts get short ids (A1...) so the model never copies URNs.
+  `app/llm.py` builds the model. `scripts/brief.py --preset X --day D --ask "..."` runs the
+  whole pipeline.
+- Agent runs measured Oct 10: about 40 s, 15-19k tokens, 8-11 tool calls, every quote
+  verified. Multi-step, multi-tool runs and structured output work on this endpoint. With
+  the team's 100k tokens/min, that is about 5 investigations a minute.
+- `Inputs` now also carries alert text, issue time and area, hourly temperature, and the
+  facility elevation (from the gridpoint). The engine ignores these; the agent uses them.
+- `tests/test_agent_tools.py`: quote verification and what_if, no model needed.
 - `.env.example`, `requirements.txt`, `.gitignore`, `README.md`.
 - `.env` holds the team key and is gitignored. Never commit it or print the key.
 

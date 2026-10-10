@@ -113,7 +113,8 @@ def collect(facility: Facility, day: date, now: datetime | None = None) -> tuple
     alert_ins = [AlertIn(id=a.id, event=a.event, hazard=a.hazard, severity=a.severity, certainty=a.certainty,
                          urgency=a.urgency, starts=_parse(a.onset or a.effective),
                          ends=_parse(a.ends) if a.ends else None, headline=a.nws_headline or a.headline,
-                         sender=a.sender_name)
+                         sender=a.sender_name, sent=a.sent, area=a.area_desc, description=a.description,
+                         instruction=a.instruction)
                  for a in alerts if a.hazard and a.message_type != "Cancel"]
 
     grid = nws.gridpoint(info)
@@ -126,7 +127,9 @@ def collect(facility: Facility, day: date, now: datetime | None = None) -> tuple
         "snow_in": _hourly(nws.grid_series(grid, "snowfallAmount")[0], True),
         "ice_in": _hourly(nws.grid_series(grid, "iceAccumulation")[0], True),
         "wind_chill_f": _hourly(nws.grid_series(grid, "windChill")[0], False),
+        "temperature_f": _hourly(nws.grid_series(grid, "temperature")[0], False),
     }
+    elev_m = (grid.body["properties"].get("elevation") or {}).get("value")
 
     gauge, stage_points = _gauge(facility, lat, lon, notes, fetched, sources)
 
@@ -156,6 +159,7 @@ def collect(facility: Facility, day: date, now: datetime | None = None) -> tuple
 
     inputs = Inputs(
         facility_id=facility.id, facility_label=facility.display_name, lat=lat, lon=lon,
+        elevation_ft=round(elev_m * 3.28084) if elev_m is not None else None,
         time_zone=facility.pin.time_zone, day=day, evaluated_at=now, open=facility.open, close=facility.close,
         morning_commute=facility.morning_commute, evening_commute=facility.evening_commute,
         decide_by=facility.delay_or_closure_by, hours=hours, alerts=alert_ins, gauge=gauge,

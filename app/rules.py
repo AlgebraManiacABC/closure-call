@@ -26,7 +26,8 @@ THRESHOLDS_PATH = Path(__file__).resolve().parent.parent / "data" / "thresholds.
 HOUR = timedelta(hours=1)
 POSTURE_RANK = {"normal": 0, "unscheduled_leave": 1, "early_dismissal": 2, "delayed_arrival": 2, "closure": 3}
 FIELD_SOURCE = {"gust_mph": "grid", "sustained_mph": "grid", "snow_in": "grid", "ice_in": "grid",
-                "wind_chill_f": "grid", "snow_storm_in": "grid", "ice_storm_in": "grid", "gauge_stage_ft": "gauge"}
+                "wind_chill_f": "grid", "snow_storm_in": "grid", "ice_storm_in": "grid", "gauge_stage_ft": "gauge",
+                "gauge_stage_held_ft": "gauge"}
 
 
 # ---------- inputs ----------
@@ -50,6 +51,10 @@ class AlertIn(BaseModel):
     ends: datetime | None  # None = until further notice
     headline: str
     sender: str
+    sent: str = ""  # when NWS issued this version of the alert
+    area: str = ""
+    description: str = ""  # free text; the agent quotes from it, the engine never reads it
+    instruction: str = ""
 
     def active(self, start: datetime, end: datetime) -> bool:
         return self.starts < end and (self.ends is None or self.ends > start)
@@ -64,6 +69,7 @@ class HourIn(BaseModel):
     wind_chill_f: float | None = None
     gauge_stage_ft: float | None = None
     gauge_extrapolated: bool = False  # beyond the end of the river forecast
+    temperature_f: float | None = None  # context for the agent (rain vs snow, refreeze); not used by rules
 
 
 class Impact(BaseModel):
@@ -92,6 +98,7 @@ class Inputs(BaseModel):
     facility_label: str
     lat: float
     lon: float
+    elevation_ft: float | None = None  # gridpoint elevation; lets the agent judge "above 6000 feet" wording
     time_zone: str
     day: date
     evaluated_at: datetime  # the "now" the evaluation is for; part of the inputs so re-runs match
@@ -230,7 +237,11 @@ def _rows(inputs: Inputs, th: dict) -> list[dict]:
     recovery = th["derived_fields"]["road_recovery_hours"]["value"]
     snow = _storm_totals(inputs.hours, "snow_in", recovery)
     ice = _storm_totals(inputs.hours, "ice_in", recovery)
-    return [{**h.model_dump(), "snow_storm_in": s, "ice_storm_in": i} for h, s, i in zip(inputs.hours, snow, ice)]
+    hold = th["derived_fields"]["flood_recession_hours"]["value"]
+    stages = [h.gauge_stage_ft for h in inputs.hours]
+    held = [max((s for s in stages[max(0, i - hold): i + 1] if s is not None), default=None) for i in range(len(stages))]
+    return [{**h.model_dump(), "snow_storm_in": s, "ice_storm_in": i, "gauge_stage_held_ft": g}
+            for h, s, i, g in zip(inputs.hours, snow, ice, held)]
 
 
 # ---------- evaluation ----------
@@ -440,7 +451,7 @@ def evaluate(inputs: Inputs, thresholds: dict | None = None, rules_version: str 
         downgrades += 1
         reasons.append("The NWS alert is at a higher level than the forecast values at this exact location; "
                        "the alert may cover a wider or higher area (check its text).")
-    if any(f.field == "gauge_stage_ft" for f in decisive) and \
+    if any(f.field == "gauge_stage_held_ft" for f in decisive) and \
             any(rows[i]["gauge_extrapolated"] for i in (hazardous or in_window)):
         downgrades += 1
         reasons.append("River levels for part of the day are beyond the end of the NWS river forecast.")
@@ -490,8 +501,9 @@ def _summary(inputs: Inputs, posture: str, label: str, decisive: list[Finding], 
 # ---------- what would change ----------
 
 FIELD_NAMES = {"gust_mph": "Wind gusts", "sustained_mph": "Sustained wind", "snow_storm_in": "Snowfall",
-               "ice_storm_in": "Ice accumulation", "wind_chill_f": "Wind chill", "gauge_stage_ft": "River stage"}
+               "ice_storm_in": "Ice accumulation", "wind_chill_f": "Wind chill", "gauge_stage_held_ft": "River stage"}
 SCALED = {"snow_storm_in": "snow_in", "ice_storm_in": "ice_in"}  # derived totals change via their raw field
+SHIFTED = {"gauge_stage_held_ft": "gauge_stage_ft"}  # derived values shifted via their raw field
 
 
 def perturbed(inputs: Inputs, field: str, amount: float, mode: str) -> Inputs:
@@ -529,7 +541,7 @@ def what_would_change(inputs: Inputs, rec: Recommendation, th: dict, version: st
             delta = target - c.peak
             if abs(delta) > limit:
                 continue
-            trial = perturbed(inputs, c.field, delta, "add")
+            trial = perturbed(inputs, SHIFTED.get(c.field, c.field), delta, "add")
             how = f"{delta:+.2f} {c.unit} (peak {target:.2f})"
             size = abs(delta)
         r = evaluate(trial, th, version, explore=False)

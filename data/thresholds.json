@@ -55,12 +55,12 @@
     },
 
     "FLOOD-GAUGE-MAJOR": {
-      "hazard": "flood", "field": "gauge_stage_ft", "op": ">=", "value": "gauge:major", "unit": "ft", "level": 2,
+      "hazard": "flood", "field": "gauge_stage_held_ft", "op": ">=", "value": "gauge:major", "unit": "ft", "level": 2,
       "source": "NWS major flood stage for this specific gauge, published by NWS (NOAA NWPS). NWS defines major flooding as extensive inundation of structures and roads, with significant evacuations.",
       "kind": "nws_criterion"
     },
     "FLOOD-GAUGE-MODERATE": {
-      "hazard": "flood", "field": "gauge_stage_ft", "op": ">=", "value": "gauge:moderate", "unit": "ft", "level": 1,
+      "hazard": "flood", "field": "gauge_stage_held_ft", "op": ">=", "value": "gauge:moderate", "unit": "ft", "level": 1,
       "source": "NWS moderate flood stage for this gauge (NOAA NWPS). NWS defines moderate flooding as some inundation of structures and roads near the stream, with some evacuations. Roads near the river may close, so flood-prone commutes are affected.",
       "kind": "nws_criterion"
     }
@@ -119,6 +119,12 @@
       "kind": "assumption",
       "source": "Assumption: snow and ice keep roads hazardous while falling and for 3 hours after they stop, while primary routes are treated. Replace with the state DOT's published snow-and-ice level-of-service targets for the routes staff use."
     },
+    "flood_recession_hours": {
+      "value": 12,
+      "kind": "assumption",
+      "source": "Assumption: roads that flood stay closed for about 12 hours after the river drops back below a flood stage, until water drains and crews inspect them. Replace with the county engineer's reopening practice for the routes staff use."
+    },
+    "gauge_stage_held_ft": "Highest river stage over the previous flood_recession_hours, so a falling river does not clear the hazard the same hour.",
     "snow_storm_in": "Snow accumulated in the 12 hours up to the last hour it fell; counts only while snow is falling or within road_recovery_hours after it stops.",
     "ice_storm_in": "Same as snow_storm_in, for ice accumulation."
   },
@@ -146,7 +152,7 @@
     "lead_time_low_hours": 96,
     "what_if_range_multiple": 4,
     "borderline_margin": {"gust_mph": 5, "sustained_mph": 4, "snow_storm_in": 1, "ice_storm_in": 0.05,
-                          "wind_chill_f": 5, "gauge_stage_ft": 0.5},
+                          "wind_chill_f": 5, "gauge_stage_held_ft": 0.5},
     "source": "Forecast skill falls with lead time. A value within the borderline margin of a threshold (crossed or not) is treated as borderline; margins are roughly the typical error of a one-day forecast for each field (assumption). What-would-change only reports changes within what_if_range_multiple times that margin (or between half and double for snow and ice totals), so it stays within plausible forecast error. Each factor lowers confidence one step: high, medium, low."
   },
 
