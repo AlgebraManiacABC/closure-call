@@ -1,0 +1,1097 @@
+{
+  "facility_id": "usda-sc-001",
+  "employees": [
+    {
+      "id": "E001",
+      "name": "Reese Okafor",
+      "title": "Facility Operations Specialist (facility manager)",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": true,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "07:00",
+        "end": "15:30"
+      },
+      "commute_miles": 19,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0100",
+        "email": "reese.okafor@usda.example",
+        "preferred": "sms"
+      },
+      "notes": "Receives the recommendation and approves or overrides it."
+    },
+    {
+      "id": "E002",
+      "name": "Drew Ortega",
+      "title": "County Executive Director",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": true,
+      "telework_eligible": true,
+      "telework_days": [
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 28,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0101",
+        "email": "drew.ortega@usda.example",
+        "preferred": "sms"
+      },
+      "notes": "Senior FSA official on site; essential for continuity of program deadlines."
+    },
+    {
+      "id": "E003",
+      "name": "Wren Gustafson",
+      "title": "IT Specialist",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": true,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "07:00",
+        "end": "15:30"
+      },
+      "commute_miles": 22,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0102",
+        "email": "wren.gustafson@usda.example",
+        "preferred": "sms"
+      },
+      "notes": "Essential: keeps the network up so teleworkers can connect during a closure."
+    },
+    {
+      "id": "E004",
+      "name": "Ellis Underhill",
+      "title": "District Conservationist",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Mon",
+        "Thu"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 35,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0103",
+        "email": "ellis.underhill@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E005",
+      "name": "Quinn Sorensen",
+      "title": "Area Director",
+      "agency": "RD",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Wed"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 33,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0104",
+        "email": "quinn.sorensen@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E006",
+      "name": "Dakota Pruitt",
+      "title": "Farm Loan Manager",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": {
+        "location": "USDA FSA State Office, Des Moines",
+        "start": "2026-10-05",
+        "end": "2026-10-23"
+      },
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 28,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0105",
+        "email": "dakota.pruitt@usda.example",
+        "preferred": "sms"
+      },
+      "notes": "On detail to the state office; skip unless the posture affects them there."
+    },
+    {
+      "id": "E007",
+      "name": "Marlow Quist",
+      "title": "Soil Conservationist",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": {
+        "location": "NRCS Area Office, Cedar Rapids",
+        "start": "2026-10-05",
+        "end": "2026-10-23"
+      },
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 30,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0106",
+        "email": "marlow.quist@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E008",
+      "name": "Tatum Wojcik",
+      "title": "Rural Development Loan Specialist",
+      "agency": "RD",
+      "duty_station": "USDA Service Center, Muscatine",
+      "detail": {
+        "location": "usda-sc-001",
+        "start": "2026-10-05",
+        "end": "2026-10-23"
+      },
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 15,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0107",
+        "email": "tatum.wojcik@usda.example",
+        "preferred": "sms"
+      },
+      "notes": "Assigned to Muscatine, on detail here this week. Easy to miss with the building roster alone."
+    },
+    {
+      "id": "E009",
+      "name": "Oakley Yoder",
+      "title": "Engineering Technician",
+      "agency": "NRCS",
+      "duty_station": "NRCS Field Office, Maquoketa",
+      "detail": {
+        "location": "usda-sc-001",
+        "start": "2026-10-05",
+        "end": "2026-10-23"
+      },
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 21,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0108",
+        "email": "oakley.yoder@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E010",
+      "name": "Greer Ostrander",
+      "title": "Program Analyst",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 20,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0109",
+        "email": "greer.ostrander@usda.example",
+        "preferred": "sms"
+      },
+      "notes": "Full-time telework agreement."
+    },
+    {
+      "id": "E011",
+      "name": "Avery Haugen",
+      "title": "Area Specialist",
+      "agency": "RD",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 48,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0110",
+        "email": "avery.haugen@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E012",
+      "name": "Blake Bergstrom",
+      "title": "Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [
+        {
+          "start": "2026-10-05",
+          "end": "2026-10-23"
+        }
+      ],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 5,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0111",
+        "email": "blake.bergstrom@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E013",
+      "name": "Casey Pellerin",
+      "title": "Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [
+        {
+          "type": "mobility",
+          "note": "Uses a wheelchair; snow or ice on the lot and ramp is a barrier."
+        }
+      ],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 12,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0112",
+        "email": "casey.pellerin@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E014",
+      "name": "Morgan Kessler",
+      "title": "Soil Conservation Technician",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [
+        {
+          "type": "hearing",
+          "note": "Deaf; text or email only, never voice calls."
+        }
+      ],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 32,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0113",
+        "email": "morgan.kessler@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E015",
+      "name": "Emerson Fenwick",
+      "title": "Farm Loan Officer",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [
+        {
+          "type": "vision",
+          "note": "Low vision; does not drive in darkness or heavy precipitation, relies on a ride."
+        }
+      ],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 34,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0114",
+        "email": "emerson.fenwick@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E016",
+      "name": "Arden Whitfield",
+      "title": "Loan Technician",
+      "agency": "RD",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [
+        {
+          "type": "medical",
+          "note": "Condition worsened by extreme cold; needs reduced outdoor exposure."
+        }
+      ],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 26,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0115",
+        "email": "arden.whitfield@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E017",
+      "name": "Bellamy Engstrom",
+      "title": "Soil Conservation Technician",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 28,
+      "commute_flood_prone": true,
+      "contact": {
+        "phone": "+1-555-0116",
+        "email": "bellamy.engstrom@usda.example",
+        "preferred": "sms"
+      },
+      "notes": "Route crosses the river on a low bridge."
+    },
+    {
+      "id": "E018",
+      "name": "Remy Nakamura",
+      "title": "Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 22,
+      "commute_flood_prone": true,
+      "contact": {
+        "phone": "+1-555-0117",
+        "email": "remy.nakamura@usda.example",
+        "preferred": "email"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E019",
+      "name": "Elliot Vasquez",
+      "title": "Farm Loan Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "06:30",
+        "end": "15:00"
+      },
+      "commute_miles": 34,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0118",
+        "email": "elliot.vasquez@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E020",
+      "name": "Skyler Jablonski",
+      "title": "Farm Loan Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Mon",
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 9,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0119",
+        "email": "skyler.jablonski@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E021",
+      "name": "Hayden Thibodeaux",
+      "title": "Program Analyst",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Thu"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 33,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0120",
+        "email": "hayden.thibodeaux@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E022",
+      "name": "Corin Fairbanks",
+      "title": "Farm Loan Officer",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 15,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0121",
+        "email": "corin.fairbanks@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E023",
+      "name": "Sawyer Larkin",
+      "title": "Farm Loan Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Thu"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 31,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0122",
+        "email": "sawyer.larkin@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E024",
+      "name": "Rowan Halvorsen",
+      "title": "Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Tue"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 20,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0123",
+        "email": "rowan.halvorsen@usda.example",
+        "preferred": "email"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E025",
+      "name": "Parker Ambrose",
+      "title": "Farm Loan Officer",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Mon"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "07:30",
+        "end": "16:00"
+      },
+      "commute_miles": 11,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0124",
+        "email": "parker.ambrose@usda.example",
+        "preferred": "email"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E026",
+      "name": "Jamie Dvorak",
+      "title": "Farm Loan Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 29,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0125",
+        "email": "jamie.dvorak@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E027",
+      "name": "Taylor Brennan",
+      "title": "Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 15,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0126",
+        "email": "taylor.brennan@usda.example",
+        "preferred": "email"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E028",
+      "name": "Cameron Iverson",
+      "title": "Program Technician",
+      "agency": "FSA",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Mon",
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 4,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0127",
+        "email": "cameron.iverson@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E029",
+      "name": "Harper Delacroix",
+      "title": "Engineering Technician",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Thu"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 32,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0128",
+        "email": "harper.delacroix@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E030",
+      "name": "Peyton Novak",
+      "title": "Soil Conservation Technician",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "07:30",
+        "end": "16:00"
+      },
+      "commute_miles": 24,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0129",
+        "email": "peyton.novak@usda.example",
+        "preferred": "email"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E031",
+      "name": "Jordan Holloway",
+      "title": "Soil Conservation Technician",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 14,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0130",
+        "email": "jordan.holloway@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E032",
+      "name": "Logan Castellano",
+      "title": "Soil Conservationist",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Tue",
+        "Thu"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 16,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0131",
+        "email": "logan.castellano@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E033",
+      "name": "Lane Rasmussen",
+      "title": "Soil Conservation Technician",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 20,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0132",
+        "email": "lane.rasmussen@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E034",
+      "name": "Riley Abernathy",
+      "title": "Resource Conservationist",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 14,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0133",
+        "email": "riley.abernathy@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E035",
+      "name": "Frankie Lindqvist",
+      "title": "Resource Conservationist",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Wed",
+        "Thu"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "07:30",
+        "end": "16:00"
+      },
+      "commute_miles": 10,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0134",
+        "email": "frankie.lindqvist@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E036",
+      "name": "Noel Kowalski",
+      "title": "Engineering Technician",
+      "agency": "NRCS",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 8,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0135",
+        "email": "noel.kowalski@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E037",
+      "name": "Darby Ruiz",
+      "title": "Area Specialist",
+      "agency": "RD",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 25,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0136",
+        "email": "darby.ruiz@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E038",
+      "name": "Sage Moravec",
+      "title": "Area Specialist",
+      "agency": "RD",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": false,
+      "telework_days": [],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 20,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0137",
+        "email": "sage.moravec@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E039",
+      "name": "Finley Mendoza",
+      "title": "Loan Technician",
+      "agency": "RD",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Fri"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 19,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0138",
+        "email": "finley.mendoza@usda.example",
+        "preferred": "sms"
+      },
+      "notes": ""
+    },
+    {
+      "id": "E040",
+      "name": "Kendall Cardenas",
+      "title": "Area Specialist",
+      "agency": "RD",
+      "duty_station": "usda-sc-001",
+      "detail": null,
+      "essential": false,
+      "telework_eligible": true,
+      "telework_days": [
+        "Mon"
+      ],
+      "planned_leave": [],
+      "accessibility_needs": [],
+      "shift": {
+        "start": "08:00",
+        "end": "16:30"
+      },
+      "commute_miles": 14,
+      "commute_flood_prone": false,
+      "contact": {
+        "phone": "+1-555-0139",
+        "email": "kendall.cardenas@usda.example",
+        "preferred": "email"
+      },
+      "notes": ""
+    }
+  ]
+}

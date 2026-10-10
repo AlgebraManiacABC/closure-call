@@ -1,0 +1,45 @@
+{
+  "id": "usda-sc-001",
+  "name": "USDA Service Center",
+  "agencies": ["FSA", "NRCS", "RD"],
+  "manager_employee_id": "E001",
+
+  "pin": {
+    "preset": "flood_iowa",
+    "lat": 41.8371,
+    "lon": -90.6986,
+    "label": "Grand Mound, IA",
+    "time_zone": "America/Chicago"
+  },
+  "presets": {
+    "flood_iowa": {"lat": 41.8371, "lon": -90.6986, "label": "Grand Mound, IA", "time_zone": "America/Chicago"},
+    "wind_carolina": {"lat": 35.876, "lon": -82.7098, "label": "Marshall, NC", "time_zone": "America/New_York"},
+    "winter_montana": {"lat": 47.6246, "lon": -112.8353, "label": "Augusta, MT", "time_zone": "America/Denver"}
+  },
+
+  "hours": {"open": "08:00", "close": "16:30"},
+  "operating_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  "commute_windows": {"morning": ["06:30", "08:30"], "evening": ["16:00", "18:00"]},
+  "decision_deadlines": {
+    "delay_or_closure_by": "05:00",
+    "early_dismissal_lead_hours": 2,
+    "_source": "OPM aims to announce DC-area delays and closures by about 4 AM; we allow until 5 AM local for a field office."
+  },
+
+  "building": {
+    "floors": 1,
+    "backup_power": false,
+    "parking": "Surface lot, about 60 spaces, not covered",
+    "public_counter": true,
+    "notes": "Single-story leased office. Walk-in customers (producers) arrive from 8 AM."
+  },
+  "flood_gauge_lid": null,
+  "_flood_gauge_lid_note": "null means use the nearest NWPS gauge with defined flood stages to the current pin.",
+
+  "federal_holidays": [
+    "2026-01-01", "2026-01-19", "2026-02-16", "2026-05-25", "2026-06-19", "2026-07-03",
+    "2026-09-07", "2026-10-12", "2026-11-11", "2026-11-26", "2026-12-25",
+    "2027-01-01", "2027-01-18", "2027-02-15"
+  ],
+  "_federal_holidays_source": "OPM federal holiday schedule (opm.gov/policy-data-oversight/pay-leave/federal-holidays)."
+}

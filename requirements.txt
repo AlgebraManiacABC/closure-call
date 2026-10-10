@@ -1,3 +1,4 @@
 strands-agents[openai]>=1.59
 python-dotenv>=1.0
 httpx>=0.27
+tzdata>=2024.1
