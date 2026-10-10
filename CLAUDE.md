@@ -204,6 +204,34 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
 - `Inputs` now also carries alert text, issue time and area, hourly temperature, and the
   facility elevation (from the gridpoint). The engine ignores these; the agent uses them.
 - `tests/test_agent_tools.py`: quote verification and what_if, no model needed.
+- `app/record.py`: the decision record (SQLAlchemy Core; SQLite by default, Postgres via
+  `DATABASE_URL`). The `ledger` table is append-only and hash-chained: one row per event
+  (evaluation, agent_report, question, decision). `entry` holds the exact canonical JSON and
+  `hash = sha256(prev_hash + entry)`. `raw_fetches` holds every raw API response gzipped
+  (about 40 KB per evaluation) with its sha256, listed in the evaluation entry. `rule_sets`
+  holds each thresholds version. Triggers block UPDATE and DELETE (and TRUNCATE on Postgres).
+  `verify_chain()` recomputes every hash. `replay(id)` re-runs the engine on the recorded
+  inputs and rules and must match exactly. Overrides require a posture and a reason of at
+  least 10 characters.
+- The rules version is the sha256 of thresholds.json with line endings normalized, so it
+  matches on Windows and Linux.
+- `scripts/brief.py ... --record --decide approve|override --by NAME [--reason ...]` records a
+  full run. `scripts/history.py [--show ID | --verify | --replay ID]` reads it back.
+  `tests/test_record.py` covers the lifecycle, override validation, the triggers, and tamper
+  detection.
+- Akamai Managed PostgreSQL 18.6 is live and holds the real decision record (`DATABASE_URL`
+  in `.env`; port 18688, database `defaultdb`, TLS required). Tables and triggers were
+  created Oct 10. A smoke test in a throwaway database on the same server passed: lifecycle,
+  identical replay, 12 concurrent writers with an unbroken chain, UPDATE/DELETE/TRUNCATE all
+  blocked, and tampering with the trigger disabled detected by `verify_chain`.
+- `normalize_url` accepts the `postgres://` URL Akamai shows, switches it to
+  `postgresql+psycopg`, and adds `sslmode=require`.
+- psycopg treats `%` in raw SQL as a placeholder, so the trigger message is built with `||`.
+- The laptop's VPN broke DNS for `*.akamaidb.net`; turn it off to reach the database. The
+  Linode's IP must be added to the database allow list when it exists.
+- The agent once claimed the Augusta facility was "in the Lincoln valley". The prompts now
+  forbid assuming a facility is inside a named area. Watch for this kind of geographic
+  inference in demos.
 - `.env.example`, `requirements.txt`, `.gitignore`, `README.md`.
 - `.env` holds the team key and is gitignored. Never commit it or print the key.
 

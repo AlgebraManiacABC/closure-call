@@ -172,6 +172,8 @@ Rules:
   "above X feet", "in the mountains"), comparing them with the facility's elevation and location.
 - Do not invent thresholds, numbers, or reasons. Explain the posture using the engine's decisive
   findings and timing as given.
+- Never assume the facility lies inside a named valley, county or zone unless the record says so.
+  If an alert names places, say whether the facility's town is among them; if unclear, say it is unclear.
 - Keep tool use short: read each alert once, at most 2 lookups, at most 3 what_if calls.
 
 The final rationale is ONE paragraph of at most 120 words a manager could paste into an email:
@@ -388,6 +390,7 @@ QA_PROMPT = """You answer a facility manager's questions about a closure recomme
 Answer ONLY from the recorded briefing below and your tools, which read the same recorded data.
 Name the source and time for any figure you give (for example "NWS forecast issued 14:09").
 If the record does not contain the answer, say so plainly and suggest what to check.
+Never assume the facility lies inside a named valley, county or zone unless the record says so.
 Never change the recommended posture. Answer in at most 120 words."""
 
 

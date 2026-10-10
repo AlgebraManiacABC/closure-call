@@ -191,9 +191,18 @@ class Recommendation(BaseModel):
 
 # ---------- thresholds ----------
 
+def thresholds_text(path: Path = THRESHOLDS_PATH) -> str:
+    """The rules file with line endings normalized, so a version hash means the same rules on any OS."""
+    return path.read_bytes().decode("utf-8").replace("\r\n", "\n")
+
+
+def rules_version(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+
+
 def load_thresholds(path: Path = THRESHOLDS_PATH) -> tuple[dict, str]:
-    raw = path.read_bytes()
-    return json.loads(raw), hashlib.sha256(raw).hexdigest()[:12]
+    text = thresholds_text(path)
+    return json.loads(text), rules_version(text)
 
 
 def _resolve(value, inputs: Inputs) -> float | None:

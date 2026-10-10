@@ -3,6 +3,7 @@
 Run from the repo root:
     python scripts/brief.py --preset winter_montana --day 2026-10-12
     python scripts/brief.py --preset flood_iowa --day tomorrow --ask "Should people who live near the river come in?"
+    python scripts/brief.py --preset winter_montana --day 2026-10-12 --record --decide approve --by "Facility manager"
 """
 import argparse
 import sys
@@ -14,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.agent import answer_question, investigate  # noqa: E402
 from app.collect import collect  # noqa: E402
 from app.facility import load_facility  # noqa: E402
+from app.record import get_store  # noqa: E402
 from app.rules import evaluate  # noqa: E402
 
 ap = argparse.ArgumentParser()
@@ -21,6 +23,13 @@ ap.add_argument("--preset")
 ap.add_argument("--day", help="YYYY-MM-DD, 'today' or 'tomorrow'; default is the next operating day")
 ap.add_argument("--ask", action="append", default=[], help="a manager question; repeatable")
 ap.add_argument("--force", action="store_true", help="run the agent even when the posture is normal")
+ap.add_argument("--record", action="store_true", help="write everything to the decision record")
+ap.add_argument("--decide", choices=["approve", "override"], help="record the manager's decision (needs --record)")
+ap.add_argument("--by", default="Facility manager", help="who decided or asked")
+ap.add_argument("--posture", help="override posture")
+ap.add_argument("--delay-hours", type=int)
+ap.add_argument("--dismissal-time")
+ap.add_argument("--reason", default="")
 args = ap.parse_args()
 
 facility = load_facility()
@@ -35,7 +44,14 @@ rec = evaluate(inputs)
 print(f"{rec.facility_label} ({inputs.elevation_ft} ft), {rec.day:%a %b %d}: {rec.posture_label} "
       f"[confidence {rec.confidence}]")
 
+store = get_store() if args.record else None
+if store:
+    ref = store.record_evaluation(inputs, rec, fetched)
+    print(f"Recorded evaluation {ref.id} (ledger seq {ref.seq}) in {store.url_safe}")
+
 report, extra = investigate(inputs, rec, force=args.force)
+if store:
+    store.record_agent_report(ref.id, report, extra)
 print(f"\nAgent: {report.reason} ({report.duration_s}s, {report.tokens.get('totalTokens', 0)} tokens)")
 print("Tool calls: " + "; ".join(report.tool_calls))
 print("\nEvidence (quotes verified word for word against the alert text):")
@@ -53,4 +69,14 @@ for c in report.caveats:
     print(f"  - {c}")
 
 for q in args.ask:
-    print(f"\nQ: {q}\nA: {answer_question(inputs, rec, report, q)}")
+    a = answer_question(inputs, rec, report, q)
+    print(f"\nQ: {q}\nA: {a}")
+    if store:
+        store.record_question(ref.id, q, a, args.by)
+
+if store and args.decide:
+    d = store.record_decision(ref.id, args.decide, args.by, args.reason, args.posture, args.delay_hours,
+                              args.dismissal_time)
+    print(f"\nRecorded decision ({args.decide}) by {args.by}, ledger seq {d.seq}")
+if store:
+    print(f"Evaluation id: {ref.id}  (python scripts/history.py --show {ref.id})")

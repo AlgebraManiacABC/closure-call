@@ -73,7 +73,8 @@ def _gauge(facility: Facility, lat: float, lon: float, notes: list[str], fetched
         return None, []
     sf, f = water.stageflow(lid)
     fetched.append(f)
-    sources["gauge"] = _ref(f, f"NOAA NWPS gauge {lid} ({detail.name})", sf.forecast_issued)
+    issued = sf.forecast_issued if sf.forecast_issued and not sf.forecast_issued.startswith("0001") else None
+    sources["gauge"] = _ref(f, f"NOAA NWPS gauge {lid} ({detail.name})", issued)
     points = sorted([(_parse(p.time), p.stage_ft) for p in sf.observed] +
                     [(_parse(p.time), p.stage_ft) for p in sf.forecast
                      if not sf.observed or _parse(p.time) > _parse(sf.observed[-1].time)])
@@ -109,7 +110,8 @@ def collect(facility: Facility, day: date, now: datetime | None = None) -> tuple
 
     alerts, f = nws.alerts_for_point(lat, lon)
     fetched.append(f)
-    sources["alerts"] = _ref(f, f"NWS active alerts for {lat:.4f},{lon:.4f}")
+    latest_sent = max((a.sent for a in alerts if a.hazard), default=None)
+    sources["alerts"] = _ref(f, f"NWS active alerts for {lat:.4f},{lon:.4f}", latest_sent)
     alert_ins = [AlertIn(id=a.id, event=a.event, hazard=a.hazard, severity=a.severity, certainty=a.certainty,
                          urgency=a.urgency, starts=_parse(a.onset or a.effective),
                          ends=_parse(a.ends) if a.ends else None, headline=a.nws_headline or a.headline,
