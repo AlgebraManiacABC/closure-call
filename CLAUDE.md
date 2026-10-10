@@ -274,6 +274,14 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
 - Browser test Oct 10 (phone width): Montana for Sunday gave a closure. The agent finished in
   about 37 s and said Augusta "is not named; unclear", so the prompt fix holds. Approve, then
   package (about 26 s, all agent drafts passed), then send: 72 messages. Chain verified.
+- Deployment: `Dockerfile` (python:3.12-slim, non-root, a single uvicorn process on purpose)
+  and `docker-compose.yml` (port 80 -> 8000, `env_file: .env`, healthcheck on /healthz).
+  `scripts/deploy.sh root@IP` installs Docker from Ubuntu's packages (docker.io,
+  docker-compose-v2) if missing and ships `git archive HEAD` to /opt/closure-call, so only
+  committed code goes and .env is never inside the image or the archive. It then copies .env
+  by scp (chmod 600), sets BASE_URL, MONITOR_MINUTES (default 15) and MONITOR_DAY (default
+  tomorrow), runs `docker compose up -d --build`, and polls /healthz. Commit before
+  deploying.
 - The agent once claimed the Augusta facility was "in the Lincoln valley". The prompts now
   forbid assuming a facility is inside a named area. Watch for this kind of geographic
   inference in demos.

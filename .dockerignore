@@ -1,0 +1,10 @@
+.env
+.venv/
+.git/
+.idea/
+.vscode/
+.claude/
+**/__pycache__/
+*.pyc
+*.db
+tests/
