@@ -30,6 +30,7 @@ ap.add_argument("--posture", help="override posture")
 ap.add_argument("--delay-hours", type=int)
 ap.add_argument("--dismissal-time")
 ap.add_argument("--reason", default="")
+ap.add_argument("--db", help="'local' for the SQLite file instead of DATABASE_URL")
 args = ap.parse_args()
 
 facility = load_facility()
@@ -44,7 +45,7 @@ rec = evaluate(inputs)
 print(f"{rec.facility_label} ({inputs.elevation_ft} ft), {rec.day:%a %b %d}: {rec.posture_label} "
       f"[confidence {rec.confidence}]")
 
-store = get_store() if args.record else None
+store = get_store(args.db) if args.record else None
 if store:
     ref = store.record_evaluation(inputs, rec, fetched)
     print(f"Recorded evaluation {ref.id} (ledger seq {ref.seq}) in {store.url_safe}")

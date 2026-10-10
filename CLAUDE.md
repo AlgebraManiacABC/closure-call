@@ -229,6 +229,28 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
 - psycopg treats `%` in raw SQL as a placeholder, so the trigger message is built with `||`.
 - The laptop's VPN broke DNS for `*.akamaidb.net`; turn it off to reach the database. The
   Linode's IP must be added to the database allow list when it exists.
+- `app/notify.py`: the notification package, built from the manager's DECISION (not the
+  recommendation). Plain code decides:
+  - who is notified or skipped, with reasons (skipped: the facility manager, people on detail
+    elsewhere, people on leave, and groups the posture does not affect);
+  - the group: essential, teleworking, office_telework_ready or office_no_telework;
+  - the facts each group must be told per posture (OPM categories; closure means
+    telework-ready staff work from home and others get weather and safety leave);
+  - personal notes (detailed in, early shift under a delay, flood-prone commute during a
+    flood, mobility/vision/cold-sensitivity);
+  - routing: sms+email for closure, delay and early dismissal; preferred channel for the
+    unscheduled-leave option.
+  One Strands structured-output call drafts an SMS and an email per group. `_check` rejects
+  drafts missing the day, delay length, dismissal time or "closed", or over 320 characters,
+  and swaps in a code template.
+- Record events: `notification_package` (draft, tied to the decision hash) and
+  `notifications_sent` (manager approval; one simulated outbox message per person per
+  channel). `record_send` refuses unless a package exists for the latest decision.
+- `scripts/notify.py --evaluation ID [--send --by NAME] [--no-agent] [--db local]`.
+  `--db local` (also on brief.py and history.py) uses the SQLite file, so development runs
+  stay out of the Akamai record. `tests/test_notify.py` covers each posture's rules.
+- Live Montana run (2-hour delay override): 36 notified, 4 skipped, 8 personal notes, all 4
+  agent drafts passed the checks, 74 outbox messages, chain verified.
 - The agent once claimed the Augusta facility was "in the Lincoln valley". The prompts now
   forbid assuming a facility is inside a named area. Watch for this kind of geographic
   inference in demos.

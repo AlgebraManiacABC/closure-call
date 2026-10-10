@@ -108,7 +108,7 @@ def normalize_url(url: str) -> sa.URL:
 
 class Store:
     def __init__(self, url: str | None = None):
-        url = url or os.environ.get("DATABASE_URL") or f"sqlite:///{(ROOT / 'data' / 'closure_call.db').as_posix()}"
+        url = url or os.environ.get("DATABASE_URL") or LOCAL_DB
         self.engine = sa.create_engine(normalize_url(url), pool_pre_ping=True)
         self.dialect = self.engine.dialect.name
         self._lock = threading.RLock()  # re-entrant: _append can run inside a caller's transaction
@@ -242,6 +242,41 @@ class Store:
         return self._append("decision", ev["facility_id"], payload, decided_by.strip(), evaluation_id=evaluation_id,
                             day=ev["day"], posture=posture)
 
+    def latest_decision(self, evaluation_id: str) -> dict:
+        decisions = [e for e in self.timeline(evaluation_id) if e["kind"] == "decision"]
+        if not decisions:
+            raise RecordError("no decision recorded yet; the manager must approve or override first")
+        return decisions[-1]
+
+    def record_notification_package(self, evaluation_id: str, package) -> EntryRef:
+        """Drafted package (recipients with reasons, group messages). Not sent."""
+        decision = self.latest_decision(evaluation_id)
+        if package.decided.posture != decision["payload"]["posture"]:
+            raise RecordError("package does not match the latest decision; rebuild it")
+        return self._append("notification_package", decision["facility_id"],
+                            {"decision_hash": decision["hash"], "package": package.model_dump(mode="json")},
+                            "system", evaluation_id=evaluation_id, day=decision["day"], posture=package.decided.posture)
+
+    def record_send(self, evaluation_id: str, approved_by: str) -> tuple[EntryRef, list]:
+        """The manager approves sending. Messages go to the simulated outbox; nothing leaves the system."""
+        from .notify import NotificationPackage, outbox
+        if not approved_by.strip():
+            raise RecordError("approved_by is required")
+        events = self.timeline(evaluation_id)
+        decision = self.latest_decision(evaluation_id)
+        packages = [e for e in events if e["kind"] == "notification_package" and e["seq"] > decision["seq"]]
+        if not packages:
+            raise RecordError("no notification package for the latest decision; build one first")
+        pkg_entry = packages[-1]
+        pkg = NotificationPackage.model_validate(pkg_entry["payload"]["package"])
+        msgs = outbox(pkg)
+        ref = self._append("notifications_sent", decision["facility_id"],
+                           {"package_hash": pkg_entry["hash"], "decision_hash": decision["hash"],
+                            "mode": "simulated", "messages": [m.model_dump(mode="json") for m in msgs]},
+                           approved_by.strip(), evaluation_id=evaluation_id, day=decision["day"],
+                           posture=pkg.decided.posture)
+        return ref, msgs
+
     # ---------- reading ----------
 
     def _row(self, r) -> dict:
@@ -284,6 +319,8 @@ class Store:
             "agent_report": AgentReport.model_validate(reports[-1]["payload"]["report"]) if reports else None,
             "questions": [e for e in events if e["kind"] == "question"],
             "decisions": [e for e in events if e["kind"] == "decision"],
+            "packages": [e for e in events if e["kind"] == "notification_package"],
+            "sends": [e for e in events if e["kind"] == "notifications_sent"],
             "events": events,
         }
 
@@ -361,11 +398,13 @@ class Store:
                 "rules_version": p["rules_version"], "differences": diffs}
 
 
-_store: Store | None = None
+LOCAL_DB = f"sqlite:///{(ROOT / 'data' / 'closure_call.db').as_posix()}"
+_stores: dict[str | None, Store] = {}
 
 
-def get_store() -> Store:
-    global _store
-    if _store is None:
-        _store = Store()
-    return _store
+def get_store(url: str | None = None) -> Store:
+    """The configured record (DATABASE_URL), or url; "local" means the SQLite file, for development runs."""
+    url = LOCAL_DB if url == "local" else url
+    if url not in _stores:
+        _stores[url] = Store(url)
+    return _stores[url]

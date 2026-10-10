@@ -25,6 +25,11 @@ def describe(e: dict) -> str:
         return f"agent {'ran' if r['ran'] else 'did not run'}: {len(r['evidence'])} verified quotes, {r['reason']}"
     if e["kind"] == "question":
         return f"Q: {p['question']}  A: {p['answer'][:140]}"
+    if e["kind"] == "notification_package":
+        c = p["package"]["counts"]
+        return f"package drafted: notify {c['notify']}, skip {c['skip']} ({p['package']['drafting']})"
+    if e["kind"] == "notifications_sent":
+        return f"SEND APPROVED: {len(p['messages'])} messages to the outbox ({p['mode']})"
     if e["kind"] == "decision":
         return f"{p['action'].upper()}: {p['posture_label']}" + (f"  reason: {p['reason']}" if p["reason"] else "")
     return json.dumps(p)[:140]
@@ -34,8 +39,9 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--show")
 ap.add_argument("--verify", action="store_true")
 ap.add_argument("--replay")
+ap.add_argument("--db", help="'local' for the SQLite file instead of DATABASE_URL")
 args = ap.parse_args()
-store = get_store()
+store = get_store(args.db)
 print(f"Decision record: {store.url_safe}\n")
 
 if args.verify:

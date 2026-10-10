@@ -61,6 +61,34 @@ def test_override_needs_reason_and_details():
     assert d["posture"] == "closure" and d["label"].startswith("Closed")
 
 
+def test_sending_needs_a_package_for_the_latest_decision():
+    from app.facility import load_facility, load_roster
+    from app.notify import Decided, build_package
+    store, eid = fresh()
+    try:
+        store.record_send(eid, "Quinn")
+        raise AssertionError("sent without a decision")
+    except RecordError:
+        pass
+    store.record_decision(eid, "approve", "Quinn")
+    loaded = store.load(eid)
+    pkg = build_package(load_facility(), load_roster(), loaded["inputs"], loaded["recommendation"],
+                        Decided(posture="delayed_arrival", label="x", delay_hours=2), use_agent=False)
+    store.record_notification_package(eid, pkg)
+    store.record_decision(eid, "override", "Quinn", posture="closure", reason="Roads iced over at 4 AM.")
+    try:
+        store.record_send(eid, "Quinn")  # package was built for the earlier decision
+        raise AssertionError("sent a stale package")
+    except RecordError:
+        pass
+    pkg2 = build_package(load_facility(), load_roster(), loaded["inputs"], loaded["recommendation"],
+                         Decided(posture="closure", label="Closed"), use_agent=False)
+    store.record_notification_package(eid, pkg2)
+    _, msgs = store.record_send(eid, "Quinn")
+    assert msgs and all(m.status == "simulated" for m in msgs)
+    assert store.verify_chain()["ok"]
+
+
 def test_rows_cannot_be_updated_or_deleted():
     store, eid = fresh()
     for stmt in (ledger.update().values(posture="normal"), ledger.delete()):
