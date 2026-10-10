@@ -27,6 +27,7 @@ class Pin:
     label: str
     time_zone: str
     preset: str | None = None
+    flood_gauge_lid: str | None = None  # NWPS gauge to watch; None = nearest with flood stages
 
 
 @dataclass(frozen=True)
@@ -43,9 +44,7 @@ class Facility:
     morning_commute: tuple[time, time]
     evening_commute: tuple[time, time]
     delay_or_closure_by: time
-    early_dismissal_lead_hours: float
     building: dict
-    flood_gauge_lid: str | None
     federal_holidays: frozenset[date]
 
     @property
@@ -90,7 +89,7 @@ def repin_to_point(facility: Facility, lat: float, lon: float) -> Facility:
 
 
 def _pin(d: dict, preset: str | None = None) -> Pin:
-    return Pin(d["lat"], d["lon"], d["label"], d["time_zone"], preset or d.get("preset"))
+    return Pin(d["lat"], d["lon"], d["label"], d["time_zone"], preset or d.get("preset"), d.get("flood_gauge_lid"))
 
 
 def load_facility(path: Path = DATA / "facility.json") -> Facility:
@@ -106,8 +105,7 @@ def load_facility(path: Path = DATA / "facility.json") -> Facility:
         morning_commute=(_hm(cw["morning"][0]), _hm(cw["morning"][1])),
         evening_commute=(_hm(cw["evening"][0]), _hm(cw["evening"][1])),
         delay_or_closure_by=_hm(dl["delay_or_closure_by"]),
-        early_dismissal_lead_hours=dl["early_dismissal_lead_hours"],
-        building=d["building"], flood_gauge_lid=d.get("flood_gauge_lid"),
+        building=d["building"],
         federal_holidays=frozenset(date.fromisoformat(x) for x in d["federal_holidays"]),
     )
 

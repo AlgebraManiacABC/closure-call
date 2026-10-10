@@ -1,0 +1,161 @@
+{
+  "_about": "Every cutoff the rules engine uses, each next to its source. Levels: 2 = hazardous (warning-level; disrupts travel or operations in that hour), 1 = elevated (advisory-level; offer unscheduled leave or telework). Values marked kind=assumption are our own choices and say what would replace them.",
+
+  "field_rules": {
+    "WIND-GUST-WARN": {
+      "hazard": "wind", "field": "gust_mph", "op": ">=", "value": 58, "unit": "mph", "level": 2,
+      "source": "NWS High Wind Warning criterion: gusts of 58 mph or more (NWS Directive 10-515, non-precipitation weather products; standard for most CONUS offices).",
+      "kind": "nws_criterion"
+    },
+    "WIND-SUST-WARN": {
+      "hazard": "wind", "field": "sustained_mph", "op": ">=", "value": 40, "unit": "mph", "level": 2,
+      "source": "NWS High Wind Warning criterion: sustained winds of 40 mph or more for one hour or longer (NWS Directive 10-515).",
+      "kind": "nws_criterion"
+    },
+    "WIND-GUST-ADV": {
+      "hazard": "wind", "field": "gust_mph", "op": ">=", "value": 46, "unit": "mph", "level": 1,
+      "source": "NWS Wind Advisory criterion: gusts of 46 to 57 mph (NWS Directive 10-515).",
+      "kind": "nws_criterion"
+    },
+    "WIND-SUST-ADV": {
+      "hazard": "wind", "field": "sustained_mph", "op": ">=", "value": 31, "unit": "mph", "level": 1,
+      "source": "NWS Wind Advisory criterion: sustained winds of 31 to 39 mph for one hour or longer (NWS Directive 10-515).",
+      "kind": "nws_criterion"
+    },
+
+    "SNOW-WARN": {
+      "hazard": "winter", "field": "snow_storm_in", "op": ">=", "value": 6, "unit": "in / 12 h", "level": 2,
+      "source": "NWS Winter Storm Warning snow criterion used by many central-US offices: 6 inches or more in 12 hours. Criteria are set per office under NWS Directive 10-513 (lower in the South, higher in mountains); confirm with the local office.",
+      "kind": "nws_criterion"
+    },
+    "SNOW-ADV": {
+      "hazard": "winter", "field": "snow_storm_in", "op": ">=", "value": 3, "unit": "in / 12 h", "level": 1,
+      "source": "NWS Winter Weather Advisory snow criterion, commonly 2 to 4 inches in 12 hours depending on office (NWS Directive 10-513). We use 3 inches.",
+      "kind": "nws_criterion"
+    },
+    "ICE-WARN": {
+      "hazard": "winter", "field": "ice_storm_in", "op": ">=", "value": 0.25, "unit": "in", "level": 2,
+      "source": "NWS Ice Storm Warning criterion: a quarter inch or more of ice accumulation (most offices; some use half an inch) (NWS Directive 10-513).",
+      "kind": "nws_criterion"
+    },
+    "ICE-ADV": {
+      "hazard": "winter", "field": "ice_storm_in", "op": ">=", "value": 0.01, "unit": "in", "level": 1,
+      "source": "Any freezing rain accumulation prompts a Winter Weather Advisory at most NWS offices (NWS Directive 10-513).",
+      "kind": "nws_criterion"
+    },
+    "COLD-WARN": {
+      "hazard": "winter", "field": "wind_chill_f", "op": "<=", "value": -25, "unit": "F", "level": 2,
+      "source": "NWS Extreme Cold Warning (which replaced the Wind Chill Warning in 2024). Wind-chill criteria are set per office; -25 F is within the range used by central-US offices. Confirm with the local office.",
+      "kind": "nws_criterion"
+    },
+    "COLD-ADV": {
+      "hazard": "winter", "field": "wind_chill_f", "op": "<=", "value": -15, "unit": "F", "level": 1,
+      "source": "NWS Cold Weather Advisory (which replaced the Wind Chill Advisory in 2024). Criteria are set per office; -15 F is within the central-US range. Confirm with the local office.",
+      "kind": "nws_criterion"
+    },
+
+    "FLOOD-GAUGE-MAJOR": {
+      "hazard": "flood", "field": "gauge_stage_ft", "op": ">=", "value": "gauge:major", "unit": "ft", "level": 2,
+      "source": "NWS major flood stage for this specific gauge, published by NWS (NOAA NWPS). NWS defines major flooding as extensive inundation of structures and roads, with significant evacuations.",
+      "kind": "nws_criterion"
+    },
+    "FLOOD-GAUGE-MODERATE": {
+      "hazard": "flood", "field": "gauge_stage_ft", "op": ">=", "value": "gauge:moderate", "unit": "ft", "level": 1,
+      "source": "NWS moderate flood stage for this gauge (NOAA NWPS). NWS defines moderate flooding as some inundation of structures and roads near the stream, with some evacuations. Roads near the river may close, so flood-prone commutes are affected.",
+      "kind": "nws_criterion"
+    }
+  },
+
+  "alert_rules": {
+    "WIND-ALERT-WARN": {
+      "hazard": "wind", "events": ["High Wind Warning", "Extreme Wind Warning"], "level": 2,
+      "source": "NWS has judged warning-level wind likely or occurring for this area."
+    },
+    "WIND-ALERT-ADV": {
+      "hazard": "wind", "events": ["Wind Advisory"], "level": 1,
+      "source": "NWS has issued a Wind Advisory for this area."
+    },
+    "WINTER-ALERT-WARN": {
+      "hazard": "winter", "events": ["Blizzard Warning", "Ice Storm Warning", "Winter Storm Warning"], "level": 2,
+      "extend_by_road_recovery": true,
+      "source": "NWS has judged warning-level snow or ice likely or occurring for this area. Roads stay hazardous for road_recovery_hours after the warning ends."
+    },
+    "WINTER-ALERT-ADV": {
+      "hazard": "winter", "events": ["Winter Weather Advisory"], "level": 1,
+      "extend_by_road_recovery": true,
+      "source": "NWS has issued a Winter Weather Advisory for this area. Roads stay slick for road_recovery_hours after it ends."
+    },
+    "COLD-ALERT-WARN": {
+      "hazard": "winter", "events": ["Extreme Cold Warning", "Wind Chill Warning"], "level": 2,
+      "source": "NWS has judged dangerous cold likely for this area; exposure while commuting or waiting for transit is the risk."
+    },
+    "COLD-ALERT-ADV": {
+      "hazard": "winter", "events": ["Cold Weather Advisory", "Wind Chill Advisory"], "level": 1,
+      "source": "NWS has issued a cold advisory for this area."
+    },
+    "FLOOD-ALERT-FFW": {
+      "hazard": "flood", "events": ["Flash Flood Warning"], "level": 2,
+      "source": "NWS Flash Flood Warning: flash flooding is occurring or imminent. NWS 'Turn Around Don't Drown': more than half of flood drownings involve vehicles driven into flood water, so commuting is the main risk."
+    },
+    "FLOOD-ALERT-WARN": {
+      "hazard": "flood", "events": ["Flood Warning", "Flood Advisory"], "level": 1,
+      "source": "NWS has issued a Flood Warning or Flood Advisory covering the facility location."
+    }
+  },
+
+  "watch_events": {
+    "_about": "Watches mean warning-level conditions are possible. They do not move the posture on their own, but they lower confidence and are listed as what could change the recommendation.",
+    "events": ["High Wind Watch", "Winter Storm Watch", "Flood Watch", "Flash Flood Watch", "Extreme Cold Watch", "Wind Chill Watch"],
+    "upgrades_to": {
+      "High Wind Watch": "High Wind Warning", "Winter Storm Watch": "Winter Storm Warning",
+      "Flood Watch": "Flood Warning", "Flash Flood Watch": "Flash Flood Warning",
+      "Extreme Cold Watch": "Extreme Cold Warning", "Wind Chill Watch": "Wind Chill Warning"
+    }
+  },
+
+  "derived_fields": {
+    "road_recovery_hours": {
+      "value": 3,
+      "kind": "assumption",
+      "source": "Assumption: snow and ice keep roads hazardous while falling and for 3 hours after they stop, while primary routes are treated. Replace with the state DOT's published snow-and-ice level-of-service targets for the routes staff use."
+    },
+    "snow_storm_in": "Snow accumulated in the 12 hours up to the last hour it fell; counts only while snow is falling or within road_recovery_hours after it stops.",
+    "ice_storm_in": "Same as snow_storm_in, for ice accumulation."
+  },
+
+  "timing": {
+    "delay_options_hours": {
+      "value": [2, 3, 4],
+      "kind": "policy",
+      "source": "OPM's 'Open with delayed arrival' status names a number of hours, usually 2. We allow up to 4 hours and recommend closure if the morning commute is still hazardous after that."
+    },
+    "early_dismissal_lead_hours": {
+      "value": 2,
+      "kind": "assumption",
+      "source": "Assumption: dismiss staff 2 hours before hazardous conditions arrive, so they are home before them. Mirrors OPM's early-departure status, which aims to get employees home before conditions deteriorate."
+    },
+    "closure_if_dismissal_before": {
+      "value": "12:00",
+      "kind": "assumption",
+      "source": "Assumption: if staff would have to leave before noon, it is safer not to have them commute in at all, so we recommend closure. Applies only when deciding before opening."
+    }
+  },
+
+  "confidence": {
+    "lead_time_medium_hours": 48,
+    "lead_time_low_hours": 96,
+    "what_if_range_multiple": 4,
+    "borderline_margin": {"gust_mph": 5, "sustained_mph": 4, "snow_storm_in": 1, "ice_storm_in": 0.05,
+                          "wind_chill_f": 5, "gauge_stage_ft": 0.5},
+    "source": "Forecast skill falls with lead time. A value within the borderline margin of a threshold (crossed or not) is treated as borderline; margins are roughly the typical error of a one-day forecast for each field (assumption). What-would-change only reports changes within what_if_range_multiple times that margin (or between half and double for snow and ice totals), so it stays within plausible forecast error. Each factor lowers confidence one step: high, medium, low."
+  },
+
+  "postures": {
+    "normal": "Open",
+    "unscheduled_leave": "Open with option for unscheduled leave or unscheduled telework",
+    "delayed_arrival": "Open with {hours}-hour delayed arrival",
+    "early_dismissal": "Open with early departure at {time}",
+    "closure": "Closed (emergency and telework-ready employees follow agency policy)",
+    "_source": "Labels follow OPM's federal operating-status categories (opm.gov/policy-data-oversight/snow-dismissal-procedures)."
+  }
+}

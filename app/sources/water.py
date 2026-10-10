@@ -59,7 +59,10 @@ class GaugeDetail:
     lid: str
     name: str
     usgs_id: str | None
+    lat: float
+    lon: float
     flood_stages_ft: dict[str, float]  # action/minor/moderate/major -> stage, as set by NWS
+    impacts: list[tuple[float, str]]  # (stage ft, NWS impact statement), highest stage first
     upstream_lid: str | None
     downstream_lid: str | None
 
@@ -69,8 +72,11 @@ def gauge_detail(lid: str) -> tuple[GaugeDetail, Fetched]:
     b = f.body
     cats = ((b.get("flood") or {}).get("categories")) or {}
     stages = {k: v["stage"] for k, v in cats.items() if v.get("stage") not in (None, -9999)}
+    impacts = sorted(((i["stage"], i["statement"]) for i in (b.get("flood") or {}).get("impacts") or []
+                      if i.get("stage") is not None), reverse=True)
     return GaugeDetail(
-        lid=b["lid"], name=b["name"], usgs_id=b.get("usgsId") or None, flood_stages_ft=stages,
+        lid=b["lid"], name=b["name"], usgs_id=b.get("usgsId") or None,
+        lat=b["latitude"], lon=b["longitude"], flood_stages_ft=stages, impacts=impacts,
         upstream_lid=b.get("upstreamLid") or None, downstream_lid=b.get("downstreamLid") or None,
     ), f
 

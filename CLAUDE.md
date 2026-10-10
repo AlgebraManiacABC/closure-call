@@ -169,6 +169,25 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   `scripts/show_facility.py` prints it.
 - The demo is on Sunday Oct 11 and Mon Oct 12 is Columbus Day, so the next operating day is
   Tue Oct 13. Pass an explicit day to evaluate a different one.
+- `data/thresholds.json`: every cutoff with its source; values that are our own choices are
+  marked `kind: assumption` and say what would replace them. Its hash is the rules version.
+- `app/rules.py`: the pure rules engine, `evaluate(Inputs) -> Recommendation`. Each hour of
+  the day gets a level per hazard (0 none, 1 advisory-level, 2 warning-level) from forecast
+  fields and NWS alerts. A timing step maps warning-level hours to delay (2-4 h), early
+  dismissal (2 h before the hazard) or closure. Advisory-level hours alone give unscheduled
+  leave. Snow, ice and winter alerts stay hazardous for 3 h after they end (road recovery).
+  It also produces confidence with reasons, and "what would change", computed as the exact
+  change needed to cross each threshold, verified by re-running the engine.
+- `app/collect.py`: all network access. It builds `Inputs` (hourly series from noon the day
+  before, alerts, gauge with NWS impact statements, sources with URL and fetch time).
+  `scripts/evaluate.py --preset X --day YYYY-MM-DD|today|tomorrow [--json f]` runs both.
+  `tests/test_rules.py` has synthetic tests; run with `python tests/test_rules.py`.
+- Live results on Oct 10: flood_iowa gives unscheduled leave (0.1 ft below major stage);
+  winter_montana on Mon Oct 12 gives a 3-hour delay; wind_carolina on Sun gives a 2-hour
+  delay. The wind and winter results come from alerts alone, because the forecast at the pin
+  is below warning level, so their confidence is medium.
+- Known simplification: a flood hazard ends the hour the river drops below stage. There is no
+  recession lag yet, unlike snow and ice.
 - `.env.example`, `requirements.txt`, `.gitignore`, `README.md`.
 - `.env` holds the team key and is gitignored. Never commit it or print the key.
 

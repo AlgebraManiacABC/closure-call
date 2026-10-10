@@ -9,10 +9,12 @@
     "lat": 41.8371,
     "lon": -90.6986,
     "label": "Grand Mound, IA",
-    "time_zone": "America/Chicago"
+    "time_zone": "America/Chicago",
+    "flood_gauge_lid": "DEWI4"
   },
   "presets": {
-    "flood_iowa": {"lat": 41.8371, "lon": -90.6986, "label": "Grand Mound, IA", "time_zone": "America/Chicago"},
+    "flood_iowa": {"lat": 41.8371, "lon": -90.6986, "label": "Grand Mound, IA", "time_zone": "America/Chicago",
+                   "flood_gauge_lid": "DEWI4"},
     "wind_carolina": {"lat": 35.876, "lon": -82.7098, "label": "Marshall, NC", "time_zone": "America/New_York"},
     "winter_montana": {"lat": 47.6246, "lon": -112.8353, "label": "Augusta, MT", "time_zone": "America/Denver"}
   },
@@ -22,7 +24,6 @@
   "commute_windows": {"morning": ["06:30", "08:30"], "evening": ["16:00", "18:00"]},
   "decision_deadlines": {
     "delay_or_closure_by": "05:00",
-    "early_dismissal_lead_hours": 2,
     "_source": "OPM aims to announce DC-area delays and closures by about 4 AM; we allow until 5 AM local for a field office."
   },
 
@@ -33,8 +34,7 @@
     "public_counter": true,
     "notes": "Single-story leased office. Walk-in customers (producers) arrive from 8 AM."
   },
-  "flood_gauge_lid": null,
-  "_flood_gauge_lid_note": "null means use the nearest NWPS gauge with defined flood stages to the current pin.",
+  "_flood_gauge_lid_note": "Each pin may name an NWPS gauge (DEWI4 = Wapsipinicon River near DeWitt, whose NWS impact statements name the highways staff use). Without one, the nearest gauge with defined flood stages is used.",
 
   "federal_holidays": [
     "2026-01-01", "2026-01-19", "2026-02-16", "2026-05-25", "2026-06-19", "2026-07-03",
