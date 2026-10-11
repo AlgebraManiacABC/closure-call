@@ -140,7 +140,11 @@ def collect(facility: Facility, day: date, now: datetime | None = None) -> tuple
     }
     elev_m = (grid.body["properties"].get("elevation") or {}).get("value")
 
-    gauge, stage_points = _gauge(facility, lat, lon, notes, fetched, sources)
+    try:  # the river gauge is supplementary: an NWPS outage must not stop the whole check
+        gauge, stage_points = _gauge(facility, lat, lon, notes, fetched, sources)
+    except SourceError as e:
+        gauge, stage_points = None, []
+        notes.append(f"River gauge data unavailable ({e}); flood relies on NWS alerts only.")
 
     start = datetime.combine(day - timedelta(days=1), time(12), tzinfo=tz)
     end = datetime.combine(day, time(21), tzinfo=tz)

@@ -257,7 +257,8 @@ def admin_page(request: Request):
         return denied
     verify = store.audit.verify() if request.query_params.get("verify") else None
     return render(request, "admin.html", users=accounts.list(), counts=store.counts(), audit=store.audit.entries(100),
-                  audit_verify=verify, ROLES=auth.ROLES, ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS)
+                  audit_verify=verify, ROLES=auth.ROLES, ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS,
+                  tz=state.facility.pin.time_zone)
 
 
 @app.post("/admin/users")

@@ -14,7 +14,7 @@
     <summary><span class="r-title">{{ u.display_name }}
       <span class="asked">@{{ u.username }} &middot; {{ u.role }}{% if u.disabled %} &middot; <b class="bad">disabled</b>{% endif %}</span></span></summary>
     <div class="r-body">
-      <p class="muted small">{{ ROLE_DESCRIPTIONS[u.role] }}. Created {{ u.created_at|t }}.</p>
+      <p class="muted small">{{ ROLE_DESCRIPTIONS[u.role] }}. Created {{ u.created_at|t(tz) }}.</p>
       {% if u.username != user.username %}
       <form method="post" action="/admin/users/{{ u.username }}/disabled">
         <input type="hidden" name="disabled" value="{{ '0' if u.disabled else '1' }}">
@@ -77,7 +77,7 @@
   {% for e in audit %}
   <details class="reason">
     <summary><span class="r-title">{{ e.action|replace("_", " ")|capitalize }}: {{ e.target }}
-      <span class="asked">by {{ e.actor }} &middot; {{ e.at|t }}</span></span></summary>
+      <span class="asked">by {{ e.actor }} &middot; {{ e.at|t(tz) }}</span></span></summary>
     <div class="r-body small">
       {% if e.action == "record_erased" %}
         <p>&ldquo;{{ e.details.reason }}&rdquo;</p>

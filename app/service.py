@@ -160,7 +160,8 @@ def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "
                   if prev else "New weather recommendation needs your decision.")
         _run_bg(eid, "agent", lambda: store.record_agent_report(eid, *investigate(inputs, rec)))
     elif rec.posture != "normal" and rec.announce_by and prev:
-        decided = any(e["kind"] == "decision" for e in store.timeline(prev[1]))
+        # A decision on ANY evaluation for this day counts, e.g. one the manager made from "Check now".
+        decided = any(h["day"] == str(day) and h["decision"] for h in store.history(f.id, limit=200))
         if not decided and timedelta(0) < rec.announce_by - datetime.now(timezone.utc) <= timedelta(hours=1):
             reason = f"Decision deadline {rec.announce_by:%H:%M} is within the hour and no decision is recorded."
     if reason:

@@ -184,7 +184,7 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   `tests/test_rules.py` has synthetic tests; run with `python tests/test_rules.py`.
 - Flood stages are held for 12 h (`flood_recession_hours`, an assumption) so a falling river
   does not clear the hazard the same hour.
-- Live results on Oct 10: flood_iowa on Sun gives a 2-hour delay (major stage until Sat
+- Live results on Oct 10 (at the old preset locations, since removed): flood_iowa on Sun gives a 2-hour delay (major stage until Sat
   evening, plus the 12 h hold); winter_montana on Mon Oct 12 gives a 3-hour delay;
   wind_carolina on Sun gives a 2-hour delay. The wind and winter results come from alerts
   alone, because the forecast at the pin is below warning level, so their confidence is
@@ -262,8 +262,9 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   - `/raw/{fetch_id}` and `/healthz`.
   Every page needs sign-in (see Accounts below); reviewers see no action forms.
 - `app/service.py`: shared steps. "Check now" records the engine result in about 5 s; the
-  agent and the package drafting run in background threads, and the page reloads every 4 s
-  via `location.reload()` (meta refresh does not reload when the URL has a #fragment).
+  agent and the package drafting run in background threads. The page polls
+  `/e/{id}/status` every 3 s and reloads once when the work finishes, reopening the sections
+  that were open (a meta refresh would not reload when the URL has a #fragment).
 - Monitor: `MONITOR_MINUTES` > 0 starts a background loop. It alerts the manager (a simulated
   SMS, recorded as a `manager_alert` event) only when a non-normal posture first appears or
   changes, or the deadline is within an hour with no decision. Its memory is keyed by pin
@@ -341,9 +342,15 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
 
 ## Open questions
 
-- Team size and who does what.
-- Whether USDA judges accept simulated notification sending (worth asking at their
-  workshop), and which of the five deliverables they weigh most.
-- Whether AWS judges mind a non-AWS model provider behind Strands.
-- Exact threshold values and their sources have not been chosen yet.
-- The Akamai account, Linode and Postgres database have not been created yet.
+- Whether USDA judges accept simulated notification sending, and which deliverable they weigh most.
+- Whether AWS judges mind a non-AWS model provider behind Strands (we use no AWS cloud services).
+- There is no git remote yet: push to GitHub before the 8 AM submission.
+- Per-facility thresholds within global bounds: discussed and deferred until after the hackathon.
+
+## Operations notes (Oct 11)
+
+- `constraints.txt` pins every package to what ran in the live container; the Dockerfile installs
+  `requirements.txt` under it, so redeploys cannot pull an untested release.
+- `MODEL_ACTIONS_PER_10_MIN` (default 20) caps checks and questions per user.
+- The river gauge is optional: an NWPS outage adds a note and the check continues on alerts alone.
+- The monitor's deadline reminder counts a decision on any evaluation for that day.

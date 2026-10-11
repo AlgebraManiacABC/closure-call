@@ -240,4 +240,6 @@ class RateLimit:
 
 
 failed_logins = RateLimit(limit=5, window_s=300)  # 5 failures per username or IP, then wait 5 minutes
-model_actions = RateLimit(limit=8, window_s=600)  # checks and questions per user per 10 minutes
+# Checks and questions per user per 10 minutes. 20 leaves room for demo rehearsals while keeping the
+# team's shared budget (100k tokens/min; ~17k per investigation) safe. Override with MODEL_ACTIONS_PER_10_MIN.
+model_actions = RateLimit(limit=int(os.environ.get("MODEL_ACTIONS_PER_10_MIN", "20")), window_s=600)
