@@ -154,13 +154,22 @@ def applies_here(alert, inputs, rec) -> list[str]:
     return notes
 
 
+# NWS alert certainty in plain words (CAP definitions: Observed = happening or has happened; Likely = more
+# than about 50% chance; Possible = 50% or less; Unlikely = not expected).
+CERTAINTY = {"Observed": "NWS says it is happening now",
+             "Likely": "NWS says it is likely (more than a 50% chance)",
+             "Possible": "NWS says it is possible (a 50% chance or less)",
+             "Unlikely": "NWS says it is not expected",
+             "Unknown": "NWS has not rated how certain it is"}
+
+
 def reason_rows(findings, inputs, evidence, rec=None) -> list[dict]:
     """One row per finding: a one-line title and when, with the details behind it."""
     rows = []
     for f in findings:
         if f.kind == "alert":
             alert = next((a for a in inputs.alerts if a.id == f.alert_id), None)
-            row = {"title": f"NWS {f.alert_event}", "sub": f"NWS rates it {f.alert_certainty.lower()}",
+            row = {"title": f"NWS {f.alert_event}", "sub": CERTAINTY.get(f.alert_certainty, CERTAINTY["Unknown"]),
                    "hazard": f.hazard, "applies": applies_here(alert, inputs, rec) if alert and rec else [],
                    "quotes": [e for e in evidence if e.alert_id == f.alert_id], "alert_id": f.alert_id}
         else:
