@@ -22,7 +22,7 @@ from fastapi.templating import Jinja2Templates
 from . import auth, service
 from . import push as push_mod
 from .record import RecordError, get_store
-from .facility import WEEKDAYS, facility_data, federal_holidays, roster_data
+from .facility import WEEKDAYS, facility_data, facility_ids, federal_holidays, roster_data
 from .facility import load_facility as load_facility_config
 from .facility import load_roster as load_roster_config
 from .organization import ACCESSIBILITY, Organization, OrgError
@@ -199,9 +199,23 @@ def role(request: Request) -> str:
 
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
     user = getattr(request.state, "user", None)
+    my_facilities = [(f, facility_data(f)["name"], state.get(f).pin.label) for f in org.allowed(user)] if user else []
     return templates.TemplateResponse(request, name, {"role": user.role if user else None, "user": user,
                                                       "state": state, "error": request.query_params.get("error"),
-                                                      **ctx})
+                                                      "my_facilities": my_facilities,
+                                                      "current_fid": cur_fid(request) if user else None, **ctx})
+
+
+def cur_fid(request: Request) -> str:
+    """The facility this user is working on: the one picked in the switcher, if they may see it."""
+    allowed = org.allowed(me(request))
+    c = request.cookies.get("fid")
+    return c if c in allowed else allowed[0]
+
+
+def may_act_on(request: Request, facility_id: str) -> bool:
+    known = facility_ids(include_archived=True)
+    return facility_id not in known or facility_id in org.allowed(me(request))
 
 
 def back(url: str, error: str | None = None) -> RedirectResponse:
@@ -212,7 +226,17 @@ def back(url: str, error: str | None = None) -> RedirectResponse:
 
 def managers_only(request: Request, url: str) -> RedirectResponse | None:
     """Reviewers and sysadmins can read and ask, but only managers act on decisions."""
-    return None if me(request).is_manager else back(url, "Only a facility manager account can do that")
+    if not me(request).is_manager:
+        return back(url, "Only a facility manager account can do that")
+    m = re.match(r"/e/([^/#?]+)", url)  # acting on a decision: only for a facility this manager is assigned to
+    if m:
+        try:
+            fid = store.load(m.group(1))["inputs"].facility_id
+        except Exception:
+            return None  # the route itself reports a missing evaluation
+        if not may_act_on(request, fid):
+            return back(url, "You are not a manager for this facility")
+    return None
 
 
 def sysadmins_only(request: Request) -> RedirectResponse | None:
@@ -414,7 +438,7 @@ def pending_alerts(facility_id: str, limit: int = 3) -> list[dict]:
             decided_days[h["day"]] = max(decided_days.get(h["day"], ""), h["decision"]["at"])
     out = []
     for a in store.outbox(100):
-        if a["kind"] != "manager_alert" or a["evaluation_id"] in decided_eids:
+        if a["kind"] != "manager_alert" or a["evaluation_id"] in decided_eids or a.get("facility_id") != facility_id:
             continue
         if decided_days.get(a["day"], "") > a["at"]:
             continue
@@ -435,7 +459,7 @@ templates.env.filters["linkify"] = linkify
 
 @app.get("/manager", response_class=HTMLResponse)
 def manager_home(request: Request):
-    f = state.facility
+    f = state.get(cur_fid(request))
     recent = store.history(f.id, limit=8)
     alerts = pending_alerts(f.id)
     today = datetime.now(f.tz).date()
@@ -461,7 +485,7 @@ def locations(request: Request, q: str = ""):
         spots = {}
     markers = [{"hazard": h, "event": s.event, "area": s.area_desc, "lat": s.lat, "lon": s.lon,
                 "severity": s.severity} for h, lst in spots.items() for s in lst]
-    return render(request, "locations.html", facility=state.facility, q=q, results=results,
+    return render(request, "locations.html", facility=state.get(cur_fid(request)), q=q, results=results,
                   search_error=search_error, spots=spots, markers=markers, HAZARD_NAMES=HAZARD_NAMES)
 
 
@@ -472,7 +496,7 @@ def pin(request: Request, lat: float = Form(...), lon: float = Form(...)):
     if not (17 <= lat <= 72 and -180 <= lon <= -64):
         return back("/locations", "Pick a point in the United States")
     try:
-        state.set_point(round(lat, 4), round(lon, 4))
+        state.set_point(round(lat, 4), round(lon, 4), cur_fid(request))
     except SourceError:
         return back("/locations", "NWS has no forecast for that point; pick a point on US land")
     return back("/manager")
@@ -484,7 +508,7 @@ def check_now(request: Request, day: str = Form("next")):
         return denied
     if not auth.model_actions.hit(me(request).username):
         return back("/manager", "Too many checks and questions in the last 10 minutes; please wait a few minutes")
-    f = state.facility
+    f = state.get(cur_fid(request))
     today = datetime.now(f.tz).date()
     try:
         d = {"next": f.next_operating_day(), "today": today, "tomorrow": today + timedelta(days=1)}.get(day) \
@@ -523,7 +547,7 @@ def evaluation_page(eid: str, request: Request):
                   decided_short=decided,
                   decision=decision, package=package["payload"]["package"] if package else None, send=send,
                   busy=service.busy(eid), bg_error=service.last_error(eid), replay=replay, tz=inputs.time_zone,
-                  manager=state.manager, raw=d["evaluation"]["payload"]["raw_fetches"])
+                  manager=_manager_for(inputs.facility_id), raw=d["evaluation"]["payload"]["raw_fetches"])
 
 
 @app.get("/thresholds", response_class=HTMLResponse)
@@ -640,18 +664,24 @@ def _form_dict(form) -> dict:
 
 
 def _refresh_state():
-    state.facility = load_facility_config().repinned(state.facility.pin)  # keep the current location
-    state.roster = load_roster_config()
+    pass  # profiles and rosters are read fresh on every use; pins stay in state
 
+
+def _manager_for(facility_id: str):
+    try:
+        return state.manager_of(facility_id)
+    except (KeyError, StopIteration):
+        return state.manager
 
 @app.get("/organization", response_class=HTMLResponse)
 def organization_page(request: Request):
     u = me(request)
     today = date.today()
     holidays = [(d, n) for y in (today.year, today.year + 1) for d, n in federal_holidays(y).items() if d >= today]
-    return render(request, "organization.html", fac=facility_data(), roster=roster_data()["employees"],
+    fid = cur_fid(request)
+    return render(request, "organization.html", fac=facility_data(fid), roster=roster_data(fid)["employees"],
                   holidays=holidays,
-                  updated=org.updated(), can_edit=u.is_manager or u.is_sysadmin, WEEKDAYS=WEEKDAYS,
+                  updated=org.updated(fid), can_edit=u.is_manager or u.is_sysadmin, WEEKDAYS=WEEKDAYS,
                   tz=state.facility.pin.time_zone)
 
 
@@ -660,7 +690,7 @@ async def organization_facility(request: Request):
     if (denied := org_editors_only(request)):
         return denied
     try:
-        org.save_facility(_form_dict(await request.form()), me(request).actor)
+        org.save_facility(_form_dict(await request.form()), me(request).actor, cur_fid(request))
     except OrgError as e:
         return back("/organization#facility", str(e))
     _refresh_state()
@@ -669,15 +699,16 @@ async def organization_facility(request: Request):
 
 @app.get("/organization/employee/{emp_id}", response_class=HTMLResponse)
 def employee_page(emp_id: str, request: Request):
-    emps = roster_data()["employees"]
+    fid = cur_fid(request)
+    emps = roster_data(fid)["employees"]
     e = next((x for x in emps if x["id"] == emp_id), None)
     if e is None and emp_id != "new":
         return back("/organization#roster", "No such employee")
     u = me(request)
     needs = {a["type"]: a.get("note", "") for a in (e or {}).get("accessibility_needs", [])}
     return render(request, "employee.html", e=e or {}, emp_id=emp_id, needs=needs, ACCESSIBILITY=ACCESSIBILITY,
-                  facility_id=facility_data()["id"], WEEKDAYS=WEEKDAYS,
-                  is_manager_person=emp_id == facility_data()["manager_employee_id"],
+                  facility_id=fid, WEEKDAYS=WEEKDAYS,
+                  is_manager_person=emp_id == facility_data(fid)["manager_employee_id"],
                   can_edit=u.is_manager or u.is_sysadmin)
 
 
@@ -686,7 +717,7 @@ async def employee_save(emp_id: str, request: Request):
     if (denied := org_editors_only(request)):
         return denied
     try:
-        new_id = org.save_employee(emp_id, _form_dict(await request.form()), me(request).actor)
+        new_id = org.save_employee(emp_id, _form_dict(await request.form()), me(request).actor, cur_fid(request))
     except OrgError as e:
         return back(f"/organization/employee/{emp_id}", str(e))
     _refresh_state()
@@ -698,11 +729,70 @@ def employee_remove(emp_id: str, request: Request):
     if (denied := org_editors_only(request)):
         return denied
     try:
-        org.remove_employee(emp_id, me(request).actor)
+        org.remove_employee(emp_id, me(request).actor, cur_fid(request))
     except OrgError as e:
         return back(f"/organization/employee/{emp_id}", str(e))
     _refresh_state()
     return back("/organization#roster")
+
+
+# ---------- facilities (sysadmins create and manage; everyone switches among theirs) ----------
+
+@app.post("/facility/switch")
+def switch_facility(request: Request, fid: str = Form(...), next: str = Form("/manager")):
+    if fid not in org.allowed(me(request)):
+        return back("/", "You do not have access to that facility")
+    r = back(_safe_next(next))
+    r.set_cookie("fid", fid, max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax",
+                 secure=BASE_URL.startswith("https"))
+    return r
+
+
+@app.get("/facilities", response_class=HTMLResponse)
+def facilities_page(request: Request):
+    if (denied := sysadmins_only(request)):
+        return denied
+    rows = []
+    for fid in facility_ids(include_archived=True):
+        d = facility_data(fid)
+        managers = [u for u, fs in org.assignments.items() if fid in fs]
+        rows.append({"id": fid, "name": d["name"], "archived": d.get("archived", False), "pin": state.get(fid).pin,
+                     "staff": len(roster_data(fid)["employees"]), "managers": managers})
+    mgr_accounts = [u for u in accounts.list() if u["role"] == "manager" and not u["disabled"]]
+    return render(request, "facilities.html", rows=rows, mgr_accounts=mgr_accounts, assignments=org.assignments)
+
+
+@app.post("/facilities")
+def facilities_create(request: Request, name: str = Form(...), manager_name: str = Form(...),
+                      manager_phone: str = Form(...), manager_email: str = Form(...)):
+    if (denied := sysadmins_only(request)):
+        return denied
+    try:
+        fid = org.create_facility(name, {"name": manager_name, "phone": manager_phone, "email": manager_email},
+                                  me(request).actor)
+    except OrgError as e:
+        return back("/facilities", str(e))
+    return switch_facility(request, fid, "/organization?saved=facility#facility")
+
+
+@app.post("/facilities/{fid}/archived")
+def facilities_archive(fid: str, request: Request, archived: str = Form(...)):
+    if (denied := sysadmins_only(request)):
+        return denied
+    try:
+        org.set_archived(fid, archived == "1", me(request).actor)
+    except (OrgError, KeyError) as e:
+        return back("/facilities", str(e))
+    return back("/facilities")
+
+
+@app.post("/facilities/{fid}/managers")
+async def facilities_managers(fid: str, request: Request):
+    if (denied := sysadmins_only(request)):
+        return denied
+    form = await request.form()
+    org.set_managers(fid, form.getlist("managers"), me(request).actor)
+    return back("/facilities")
 
 
 @app.get("/healthz")

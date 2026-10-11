@@ -394,3 +394,11 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   are unchanged. Each save is parsed as the app loads it before being kept, and goes in the admin log
   (employee_added/changed/removed, facility_changed). The facility manager cannot be removed. The location
   stays on /locations. `tests/test_org.py`.
+- Multiple facilities (Oct 11): sysadmins create, archive and restore facilities and assign manager accounts
+  on /facilities. Saved documents are `facility:<id>` and `roster:<id>` in `org_config` (bare
+  "facility"/"roster" are the starting facility, `facility.DEFAULT_ID`), plus an `assignments` document
+  (username -> facility ids; a manager with none sees every facility). A new facility copies the first one's
+  hours and starts with one employee, its facility manager. `AppState` keeps each facility's pin
+  (`state.get(fid)`, `state.manager_of(fid)`); the current facility per user is the `fid` cookie, set by the
+  header switcher. Managers cannot decide, draft or send for a known facility they are not assigned to.
+  The monitor checks every active facility. Push still goes to every manager device (not per facility).

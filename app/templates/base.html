@@ -21,8 +21,17 @@
     <a href="/outbox">Outbox</a>
     <a href="/history">History</a>
     <a href="/organization">Staff</a>
-    {% if role == "sysadmin" %}<a href="/admin">Admin</a>{% endif %}
+    {% if role == "sysadmin" %}<a href="/facilities">Facilities</a> <a href="/admin">Admin</a>{% endif %}
   </nav>
+  {% if my_facilities|length > 1 %}
+  <form method="post" action="/facility/switch" class="facility-switch">
+    <input type="hidden" name="next" value="{{ request.url.path }}">
+    <select name="fid" aria-label="Facility" onchange="this.form.submit()">
+      {% for fid, name, place in my_facilities %}<option value="{{ fid }}" {{ "selected" if fid == current_fid }}>{{ name }}, {{ place }}</option>{% endfor %}
+    </select>
+    <noscript><button>Switch</button></noscript>
+  </form>
+  {% endif %}
   <form method="post" action="/logout" class="role">
     <a href="/account" title="My account">{{ user.display_name }} &middot; {{ user.role }}</a>
     <button class="signout">Sign out</button>

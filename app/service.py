@@ -53,27 +53,43 @@ def _run_bg(eid: str, kind: str, fn):
 # ---------- facility state ----------
 
 class AppState:
+    """Each facility's current pin (profiles and rosters are read fresh from app.facility)."""
+
     def __init__(self):
-        self.facility: Facility = load_facility()
-        self.roster = load_roster()
-        self.last_seen: dict[tuple, tuple[str, str]] = {}  # monitor memory: (lat, lon, day) -> (posture, eid)
+        self.pins: dict[str, Pin] = {}
+        self.last_seen: dict[tuple, tuple[str, str]] = {}  # monitor memory: (facility, lat, lon, day) -> (posture, eid)
+
+    def get(self, fid: str | None = None) -> Facility:
+        f = load_facility(fid=fid)
+        return f.repinned(self.pins[f.id]) if f.id in self.pins else f
+
+    @property
+    def facility(self) -> Facility:  # the starting facility, for places with no facility in context
+        return self.get()
+
+    def manager_of(self, fid: str | None = None):
+        f = self.get(fid)
+        return next(e for e in load_roster(fid=f.id) if e.id == f.manager_employee_id)
 
     @property
     def manager(self):
-        return next(e for e in self.roster if e.id == self.facility.manager_employee_id)
+        return self.manager_of()
 
-    def set_point(self, lat: float, lon: float):
-        """Pin the facility anywhere in the US; NWS supplies the town name and time zone."""
-        self.facility = repin_to_point(load_facility(), lat, lon)
+    def set_point(self, lat: float, lon: float, fid: str | None = None):
+        """Pin a facility anywhere in the US; NWS supplies the town name and time zone."""
+        f = repin_to_point(load_facility(fid=fid), lat, lon)
+        self.pins[f.id] = f.pin
 
     def restore(self, store: Store):
-        """After a restart or redeploy, return to the location of the most recent evaluation."""
-        try:
-            latest = store.history(limit=1)
-            if latest:
-                self.facility = facility_for(store.load(latest[0]["evaluation_id"])["inputs"])
-        except Exception:
-            log.exception("could not restore the last location; using the default")
+        """After a restart or redeploy, return each facility to the location of its most recent evaluation."""
+        from .facility import facility_ids
+        for fid in facility_ids(include_archived=True):
+            try:
+                latest = store.history(fid, limit=1)
+                if latest:
+                    self.pins[fid] = facility_for(store.load(latest[0]["evaluation_id"])["inputs"]).pin
+            except Exception:
+                log.exception("could not restore the last location of %s; using its default", fid)
 
 
 _hotspot_cache: tuple[float, dict] | None = None
@@ -93,7 +109,10 @@ def live_hotspots(max_age_s: int = 600) -> dict:
 
 def facility_for(inputs: Inputs) -> Facility:
     """The facility as it was pinned for a recorded evaluation."""
-    f = load_facility()
+    try:
+        f = load_facility(fid=inputs.facility_id)
+    except KeyError:  # a facility that no longer exists: fall back to the starting profile
+        f = load_facility()
     label = inputs.facility_label.split(", ", 1)[1] if ", " in inputs.facility_label else inputs.facility_label
     same_as_default = abs(f.pin.lat - inputs.lat) < 1e-4 and abs(f.pin.lon - inputs.lon) < 1e-4
     return f if same_as_default else f.repinned(Pin(inputs.lat, inputs.lon, label, inputs.time_zone))
@@ -124,7 +143,8 @@ def start_package(store: Store, eid: str, use_agent: bool = True):
                           dismissal_time=dp["dismissal_time"], action=dp["action"],
                           decided_by=store.latest_decision(eid)["actor"], reason=dp.get("reason", ""),
                           recommended_label=dp.get("recommended_label", ""))
-        pkg = build_package(facility_for(d["inputs"]), load_roster(), d["inputs"], d["recommendation"], decided,
+        f = facility_for(d["inputs"])
+        pkg = build_package(f, load_roster(fid=f.id), d["inputs"], d["recommendation"], decided,
                             use_agent=use_agent)
         store.record_notification_package(eid, pkg)
 
@@ -151,13 +171,14 @@ def push_label(rec) -> str:
     return PUSH_LABELS[rec.posture]
 
 
-def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "next", push=None) -> str | None:
-    """One scheduled check. Records an evaluation every time; alerts the manager only when a non-normal
-    posture first appears, the posture changes, or the decision deadline is near with no decision.
+def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "next", push=None,
+                 fid: str | None = None) -> str | None:
+    """One scheduled check of one facility. Records an evaluation every time; alerts the manager only when a
+    non-normal posture first appears, the posture changes, or the decision deadline is near with no decision.
     day_mode "tomorrow" watches the next calendar day as if open (for weekend demos)."""
-    f = state.facility
+    f = state.get(fid)
     day = f.next_operating_day() if day_mode == "next" else datetime.now(f.tz).date() + timedelta(days=1)
-    key = (f.pin.lat, f.pin.lon, str(day))  # all pins share one facility id, so key by location
+    key = (f.id, f.pin.lat, f.pin.lon, str(day))  # a re-pinned facility starts fresh
     prev = state.last_seen.get(key)  # (posture, evaluation id, delay hours)
     inputs, fetched = collect(f, day)
     rec = evaluate(inputs)
@@ -175,7 +196,7 @@ def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "
         if not decided and timedelta(0) < rec.announce_by - datetime.now(timezone.utc) <= timedelta(hours=1):
             reason = f"Decision deadline {rec.announce_by:%H:%M} is within the hour and no decision is recorded."
     if reason:
-        manager = state.manager
+        manager = state.manager_of(f.id)
         body = (f"Closure Call: {f.display_name}, {day:%a %b %d}: {rec.posture_label}. {reason} "
                 f"Review: {base_url}/e/{eid}")
         delivery = None
@@ -199,10 +220,12 @@ def push_label_for(prev: tuple) -> str:
 def run_monitor(store: Store, state: AppState, base_url: str, minutes: float, day_mode: str = "next", push=None):
     def loop():
         while True:
-            try:
-                monitor_tick(store, state, base_url, day_mode, push)
-            except Exception:
-                log.exception("monitor tick failed")
+            from .facility import facility_ids
+            for fid in facility_ids():  # every active facility, each on its own; one failing does not stop the rest
+                try:
+                    monitor_tick(store, state, base_url, day_mode, push, fid)
+                except Exception:
+                    log.exception("monitor tick failed for %s", fid)
             _time.sleep(minutes * 60)
 
     threading.Thread(target=loop, daemon=True, name="monitor").start()

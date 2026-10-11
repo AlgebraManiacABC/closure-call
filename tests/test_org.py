@@ -11,6 +11,7 @@ from pathlib import Path
 os.environ["DB"] = f"sqlite:///{(Path(tempfile.mkdtemp()) / 'org.db').as_posix()}"
 os.environ["SESSION_SECRET"] = secrets.token_urlsafe(32)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import logging  # noqa: E402
 
@@ -71,7 +72,6 @@ def test_manager_adds_and_edits_an_employee_and_it_is_logged():
     c.post(f"/organization/employee/{pat.id}", data=employee_form())  # clearing the fields clears them
     pat = next(e for e in fac.load_roster() if e.id == pat.id)
     assert not pat.planned_leave and pat.detail is None and not pat.accessibility_needs
-    assert any(e for e in state.roster if e.id == pat.id)
     actions = [e["action"] for e in store.audit.entries(20)]
     assert "employee_added" in actions and "employee_changed" in actions
 
@@ -108,6 +108,32 @@ def test_sysadmin_changes_the_facility_manager_and_hours_and_survives_restart():
     fac.set_override("facility", None)
     Organization(store.engine, store.audit)  # a restart reloads the saved copy
     assert fac.load_facility().manager_employee_id == "E002"
+
+
+def test_sysadmin_creates_a_facility_with_its_own_staff_and_assigns_a_manager():
+    from app.rules import evaluate
+    from test_rules import gusts, make
+    adm = client("adm")
+    r = adm.post("/facilities", data={"name": "USDA Service Center, Ames", "manager_name": "Sam Lee",
+                                      "manager_phone": "+1-555-0300", "manager_email": "sam.lee@usda.example"})
+    assert "error" not in r.headers["location"], r.headers["location"]
+    fid = "usda-service-center-ames"
+    assert fid in fac.facility_ids() and [e.name for e in fac.load_roster(fid=fid)] == ["Sam Lee"]
+    assert state.manager_of(fid).name == "Sam Lee" and state.manager.name != "Sam Lee"  # separate rosters
+    assert "Ames" in adm.get("/facilities").text
+    # assign the manager to Ames only: they switch to it and cannot decide for the first facility
+    adm.post(f"/facilities/{fid}/managers", data={"managers": ["mgr"]})
+    m = client("mgr")
+    page = m.get("/manager").text
+    assert "Ames" in page and 'name="fid"' not in page  # one facility, so no switcher
+    inp = make(gusts([6, 7], 62)).model_copy(update={"facility_id": fac.DEFAULT_ID})
+    eid = store.record_evaluation(inp, evaluate(inp), []).id
+    r = m.post(f"/e/{eid}/decide", data={"action": "approve"})
+    assert "not+a+manager" in r.headers["location"] or "not%20a%20manager" in r.headers["location"]
+    adm.post(f"/facilities/{fid}/managers", data={})  # unassigned again: sees every facility
+    assert 'name="fid"' in m.get("/manager").text
+    adm.post(f"/facilities/{fid}/archived", data={"archived": "1"})
+    assert fid not in fac.facility_ids()
 
 
 if __name__ == "__main__":

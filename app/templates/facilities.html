@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Facilities: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Facilities</h1>
+  <p class="muted">Each facility has its own location, hours, staff and decision history. Managers assigned to a
+    facility can decide for it; a manager with no assignments can work with every facility. Every change is in the
+    admin log.</p>
+</section>
+
+<section class="card">
+  <h2>Facilities ({{ rows|length }})</h2>
+  {% for r in rows %}
+  <details class="reason">
+    <summary><span class="r-title">{{ r.name }}{% if r.archived %} <b class="bad">archived</b>{% endif %}</span>
+      <span class="r-when">{{ r.pin.label }} &middot; {{ r.staff }} staff</span></summary>
+    <div class="r-body">
+      <p class="muted small">ID {{ r.id }}.
+        {% if r.managers %}Managers: {{ r.managers|join(", ") }}.{% else %}No managers assigned: every manager can work with it.{% endif %}</p>
+      {% if not r.archived %}
+      <form method="post" action="/facility/switch" class="inline">
+        <input type="hidden" name="fid" value="{{ r.id }}"><input type="hidden" name="next" value="/organization">
+        <button>Edit its staff and hours</button>
+      </form>
+      {% endif %}
+      {% if mgr_accounts %}
+      <form method="post" action="/facilities/{{ r.id }}/managers" class="stack">
+        <div class="small muted">Managers for this facility</div>
+        <div class="checkrow">{% for u in mgr_accounts %}<label><input type="checkbox" name="managers" value="{{ u.username }}"
+          {{ "checked" if r.id in assignments.get(u.username, []) }}> {{ u.display_name }} (@{{ u.username }})</label>{% endfor %}</div>
+        <button>Save managers</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/facilities/{{ r.id }}/archived" class="inline">
+        <input type="hidden" name="archived" value="{{ '0' if r.archived else '1' }}">
+        <button>{{ "Restore" if r.archived else "Archive" }} this facility</button>
+      </form>
+      <p class="muted small">Archiving hides it and stops monitoring; its decision history is kept.</p>
+    </div>
+  </details>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>Add a facility</h2>
+  <p class="muted small">It starts with the same hours and rules as the first facility and one employee, its facility
+    manager (named in its notices as the contact). Set its location from Change location after switching to it.</p>
+  <form method="post" action="/facilities" class="stack">
+    <label>Facility name <input name="name" required placeholder="e.g. USDA Service Center, Ames"></label>
+    <label>Facility manager's name <input name="manager_name" required></label>
+    <div class="pair">
+      <label>Their phone <input name="manager_phone" type="tel" required></label>
+      <label>Their email <input name="manager_email" type="email" required></label>
+    </div>
+    <button class="primary">Add facility</button>
+  </form>
+</section>
+{% endblock %}

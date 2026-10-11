@@ -125,23 +125,50 @@ _overrides: dict[str, dict] = {}
 FACILITY_FILE, ROSTER_FILE = DATA / "facility.json", DATA / "roster.json"
 
 
+DEFAULT_ID = json.loads(FACILITY_FILE.read_text(encoding="utf-8"))["id"]
+
+
+def _key(name: str) -> str:
+    """Saved documents are "facility:<id>" and "roster:<id>"; the bare names are the starting facility."""
+    return f"{name}:{DEFAULT_ID}" if name in ("facility", "roster") else name
+
+
 def set_override(name: str, data: dict | None):
     if data is None:
-        _overrides.pop(name, None)
+        _overrides.pop(_key(name), None)
     else:
-        _overrides[name] = data
+        _overrides[_key(name)] = data
 
 
-def facility_data() -> dict:
-    return _overrides.get("facility") or json.loads(FACILITY_FILE.read_text(encoding="utf-8"))
+def facility_ids(include_archived: bool = False) -> list[str]:
+    """Every facility: the starting one from data/facility.json plus any a sysadmin created."""
+    ids = [DEFAULT_ID] + sorted(k.split(":", 1)[1] for k in _overrides
+                                if k.startswith("facility:") and k != f"facility:{DEFAULT_ID}")
+    return [i for i in ids if include_archived or not facility_data(i).get("archived")]
 
 
-def roster_data() -> dict:
-    return _overrides.get("roster") or json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+def facility_data(fid: str | None = None) -> dict:
+    fid = fid or DEFAULT_ID
+    d = _overrides.get(f"facility:{fid}")
+    if d is None:
+        if fid != DEFAULT_ID:
+            raise KeyError(f"no facility {fid}")
+        d = json.loads(FACILITY_FILE.read_text(encoding="utf-8"))
+    return d
 
 
-def load_facility(path: Path | None = None) -> Facility:
-    return facility_from_dict(json.loads(path.read_text(encoding="utf-8")) if path else facility_data())
+def roster_data(fid: str | None = None) -> dict:
+    fid = fid or DEFAULT_ID
+    d = _overrides.get(f"roster:{fid}")
+    if d is None:
+        if fid != DEFAULT_ID:
+            raise KeyError(f"no roster for {fid}")
+        d = json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+    return d
+
+
+def load_facility(path: Path | None = None, fid: str | None = None) -> Facility:
+    return facility_from_dict(json.loads(path.read_text(encoding="utf-8")) if path else facility_data(fid))
 
 
 def facility_from_dict(d: dict) -> Facility:
@@ -205,8 +232,8 @@ def _range(d: dict) -> DateRange:
     return DateRange(date.fromisoformat(d["start"]), date.fromisoformat(d["end"]))
 
 
-def load_roster(path: Path | None = None) -> list[Employee]:
-    return roster_from_dict(json.loads(path.read_text(encoding="utf-8")) if path else roster_data())
+def load_roster(path: Path | None = None, fid: str | None = None) -> list[Employee]:
+    return roster_from_dict(json.loads(path.read_text(encoding="utf-8")) if path else roster_data(fid))
 
 
 def roster_from_dict(d: dict) -> list[Employee]:
