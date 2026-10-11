@@ -190,6 +190,12 @@ def evaluation_page(eid: str, request: Request):
                   manager=state.manager, raw=d["evaluation"]["payload"]["raw_fetches"])
 
 
+@app.get("/e/{eid}/status")
+def evaluation_status(eid: str):
+    """Polled by the decision page while background work runs, so the page reloads only when it finishes."""
+    return {"busy": sorted(service.busy(eid)), "error": service.last_error(eid)}
+
+
 @app.post("/e/{eid}/ask")
 def ask(eid: str, request: Request, question: str = Form(...)):
     who = f"{state.manager.name} (facility manager)" if role(request) == "manager" else "Reviewer"

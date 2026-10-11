@@ -1,7 +1,38 @@
 {% extends "base.html" %}
 {% block title %}{{ short }}: {{ inputs.facility_label }}{% endblock %}
-{% block head %}{% if busy %}
-<script>setTimeout(function () { location.reload(); }, 4000);</script>
+{% block head %}
+<script>
+// Keep open sections open across the single reload that happens when background work finishes.
+(function () {
+  var key = "open:" + location.pathname;
+  function summaryKey(d) { var s = d.querySelector("summary"); return s ? s.innerText.trim().slice(0, 80) : ""; }
+  window.reloadKeepingOpen = function () {
+    var open = [].slice.call(document.querySelectorAll("details[open]")).map(summaryKey);
+    try { sessionStorage.setItem(key, JSON.stringify(open)); } catch (e) {}
+    location.reload();
+  };
+  document.addEventListener("DOMContentLoaded", function () {
+    var saved;
+    try { saved = JSON.parse(sessionStorage.getItem(key) || "[]"); sessionStorage.removeItem(key); } catch (e) { saved = []; }
+    if (!saved.length) return;
+    [].slice.call(document.querySelectorAll("details")).forEach(function (d) {
+      if (saved.indexOf(summaryKey(d)) >= 0) d.open = true;
+    });
+  });
+})();
+</script>
+{% if busy %}
+<script>
+// Ask whether the agent or drafting is still running; reload once when it is done.
+(function poll() {
+  setTimeout(function () {
+    fetch("/e/{{ eid }}/status", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (s) { if (s.busy.length === 0) { window.reloadKeepingOpen(); } else { poll(); } })
+      .catch(poll);
+  }, 3000);
+})();
+</script>
 <noscript><meta http-equiv="refresh" content="4; url=/e/{{ eid }}"></noscript>
 {% endif %}{% endblock %}
 {% block content %}
