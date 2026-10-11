@@ -227,6 +227,12 @@ class Store:
         elif action == "override":
             if posture not in POSTURES:
                 raise RecordError(f"posture must be one of {POSTURES}")
+            rec_time = rec["dismissal_time"][11:16] if rec.get("dismissal_time") else None
+            if posture == rec["posture"] and (
+                    posture not in ("delayed_arrival", "early_dismissal")
+                    or (posture == "delayed_arrival" and delay_hours == rec.get("delay_hours"))
+                    or (posture == "early_dismissal" and dismissal_time == rec_time)):
+                raise RecordError("that is the recommendation itself; approve it instead of overriding")
             if len(reason.strip()) < 10:
                 raise RecordError("an override needs a written reason (at least 10 characters)")
             if posture == "delayed_arrival" and not delay_hours:

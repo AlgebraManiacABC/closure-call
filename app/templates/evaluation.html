@@ -181,7 +181,10 @@
       <label>{{ "Change to" if decision else "Posture" }}
         <select name="posture">
           {% for k, v in POSTURE_NAMES.items() %}
-            {% if not decision or (k != rec.posture and (k != decision.payload.posture or k in ("delayed_arrival", "early_dismissal"))) %}
+            {# Never offer the recommended status as an "override" (approving does that), nor the current decision;
+               delay and early dismissal stay, since their hours or time can differ. #}
+            {% set adjustable = k in ("delayed_arrival", "early_dismissal") %}
+            {% if (k != rec.posture or adjustable) and (not decision or k != decision.payload.posture or adjustable) %}
             <option value="{{ k }}">{{ v }}</option>
             {% endif %}
           {% endfor %}

@@ -55,6 +55,14 @@ def test_override_needs_reason_and_details():
             raise AssertionError(f"accepted {kwargs}")
         except RecordError:
             pass
+    for same in ({"posture": "delayed_arrival", "delay_hours": 2},):  # identical to the recommendation
+        try:
+            store.record_decision(eid, "override", "Quinn", reason="x" * 20, **same)
+            raise AssertionError("accepted an override equal to the recommendation")
+        except RecordError:
+            pass
+    store.record_decision(eid, "override", "Quinn", posture="delayed_arrival", delay_hours=3,
+                          reason="Plows need an extra hour on the county roads.")  # same posture, longer delay: fine
     store.record_decision(eid, "override", "Quinn", posture="closure",
                           reason="County sheriff closed the access road at 5 AM.")
     d = store.history()[0]["decision"]
