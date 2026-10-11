@@ -103,14 +103,21 @@ def _fingerprint(password_hash: str) -> str:
 # ---------- accounts ----------
 
 class Accounts:
-    def __init__(self, engine: sa.Engine):
+    """Every change is written to the admin log (who, what, to whom); passwords never are."""
+
+    def __init__(self, engine: sa.Engine, audit=None):
         self.engine = engine
+        self.audit = audit
         auth_meta.create_all(engine)
+
+    def _log(self, action: str, actor: str, target: str, details: dict | None = None):
+        if self.audit is not None:
+            self.audit.append(action, actor, target, details)
 
     def _user(self, row) -> User:
         return User(row.username, row.display_name, row.role, _fingerprint(row.password_hash))
 
-    def add(self, username: str, display_name: str, role: str, password: str):
+    def add(self, username: str, display_name: str, role: str, password: str, actor: str = "system"):
         username = username.strip().lower()
         if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,31}", username):
             raise AuthError("username: 2-32 lowercase letters, numbers, dots, dashes or underscores")
@@ -122,18 +129,21 @@ class Accounts:
             c.execute(users.insert().values(username=username, display_name=display_name.strip(), role=role,
                                             password_hash=hash_password(password), disabled=False,
                                             created_at=datetime.now(timezone.utc).isoformat(timespec="seconds")))
+        self._log("account_added", actor, username, {"display_name": display_name.strip(), "role": role})
 
-    def set_password(self, username: str, password: str):
+    def set_password(self, username: str, password: str, actor: str = "system"):
         with self.engine.begin() as c:
             n = c.execute(users.update().where(users.c.username == username)
                           .values(password_hash=hash_password(password))).rowcount
         if not n:
             raise AuthError(f"no user {username}")
+        self._log("password_changed", actor, username)
 
-    def set_disabled(self, username: str, disabled: bool):
+    def set_disabled(self, username: str, disabled: bool, actor: str = "system"):
         with self.engine.begin() as c:
             if not c.execute(users.update().where(users.c.username == username).values(disabled=disabled)).rowcount:
                 raise AuthError(f"no user {username}")
+        self._log("account_disabled" if disabled else "account_enabled", actor, username)
 
     def list(self) -> list[dict]:
         with self.engine.connect() as c:

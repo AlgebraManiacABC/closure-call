@@ -321,12 +321,21 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   cannot decide, for separation of duties). Everyone can change their own password at
   /account. Erasing (`Store.erase_all`, also used by `scripts/reset_record.py`) needs the
   word ERASE, a reason and the sysadmin's password. The new chain starts with a
-  `record_erased` entry (who, why, counts, and the old chain's head hash), shown on /history. Every ledger actor is `Display Name (@username, role)`. In-memory limits: 5 failed
+  `record_erased` entry (who, why, counts, and the old chain's head hash), shown on /history.
+- Admin log (`app/audit.py`): a separate append-only, hash-chained `admin_log` table with its
+  own trigger function (`closure_call_admin_log_append_only`), so `erase_all` never drops it.
+  It records every account change (added, disabled, enabled, password changed; never
+  passwords) and every erasure. Each erasure's `record_erased` entry links to its admin log
+  entry (`admin_log_seq`, `admin_log_hash`), so earlier erasures survive later ones. After each
+  append, `AUDIT ANCHOR seq=... hash=...` goes to the server log as an anchor. Docker keeps
+  only 3 x 10 MB of logs, so copy anchors elsewhere if they must last. The Admin page lists
+  and verifies it; /history shows every erasure from it. A Postgres smoke test in a
+  throwaway database passed (two erasures kept, UPDATE/DELETE/TRUNCATE blocked). Every ledger actor is `Display Name (@username, role)`. In-memory limits: 5 failed
   sign-ins per username or IP locks for 5 minutes; 8 checks or questions per user per 10
   minutes. Manage accounts with `python scripts/users.py add|list|passwd|disable|enable
   [--db local]`. It prompts for passwords; use PowerShell, since Git Bash echoes them. Notices
   to employees are still signed by the roster's facility manager (E001). `tests/test_auth.py`
-  (12 tests).
+  (13 tests).
 - `.env.example`, `requirements.txt`, `.gitignore`, `README.md`.
 - `.env` holds the team key and is gitignored. Never commit it or print the key.
 

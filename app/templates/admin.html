@@ -61,11 +61,34 @@
       <button class="danger big">Erase the whole decision record</button>
     </form>
   </details>
-  {% if erasures %}
-  <h3>Past erasures</h3>
-  <ul class="small">{% for e in erasures %}
-    <li>{{ e.at|t }} by {{ e.actor }}: &ldquo;{{ e.payload.reason }}&rdquo; ({{ e.payload.previous_entries }} entries; old chain ended {{ e.payload.previous_head[:16] }})</li>
-  {% endfor %}</ul>
+</section>
+
+<section class="card" id="log">
+  <h2>Admin log ({{ audit|length }})</h2>
+  <p class="muted small">Every account change and every erasure, newest first. Append-only and hash-chained like the
+    decision record, and never erased with it. Each new head hash is also written to the server log.</p>
+  {% if audit_verify %}
+    <p class="{{ 'ok' if audit_verify.ok else 'bad' }}"><b>Admin log {{ "verified" if audit_verify.ok else "BROKEN" }}</b>:
+      {{ audit_verify.entries }} entries, head <code>{{ audit_verify.head[:16] }}</code>.</p>
+    {% for p in audit_verify.problems %}<p class="bad small">{{ p }}</p>{% endfor %}
+  {% else %}
+    <p><a class="button" href="?verify=1#log">Verify the admin log</a></p>
   {% endif %}
+  {% for e in audit %}
+  <details class="reason">
+    <summary><span class="r-title">{{ e.action|replace("_", " ")|capitalize }}: {{ e.target }}
+      <span class="asked">by {{ e.actor }} &middot; {{ e.at|t }}</span></span></summary>
+    <div class="r-body small">
+      {% if e.action == "record_erased" %}
+        <p>&ldquo;{{ e.details.reason }}&rdquo;</p>
+        <p>{{ e.details.previous_entries }} entries and {{ e.details.previous_raw_responses }} raw responses erased.
+          The old record's last hash was <code>{{ e.details.previous_head[:16] }}</code>.</p>
+      {% elif e.details %}
+        <p>{% for k, v in e.details.items() %}{{ k|replace("_", " ") }}: {{ v }}{{ "; " if not loop.last }}{% endfor %}</p>
+      {% endif %}
+      <p class="hash">#{{ e.seq }} {{ e.hash[:16] }} &larr; {{ e.prev_hash[:16] }}</p>
+    </div>
+  </details>
+  {% else %}<p class="muted">No admin actions recorded yet.</p>{% endfor %}
 </section>
 {% endblock %}

@@ -14,9 +14,9 @@
 </section>
 <section class="card wide">
   {% for e in erasures %}
-  <div class="erased-note small"><b>Earlier history was erased</b> {{ e.at|t(tz) }} by {{ e.actor }}:
-    &ldquo;{{ e.payload.reason }}&rdquo;. {{ e.payload.previous_entries }} entries removed; the old chain ended at
-    <code>{{ e.payload.previous_head[:16] }}</code>.</div>
+  <div class="erased-note small"><b>History was erased</b> {{ e.at|t(tz) }} by {{ e.actor }}:
+    &ldquo;{{ e.details.reason }}&rdquo;. {{ e.details.previous_entries }} entries removed; the old chain ended at
+    <code>{{ e.details.previous_head[:16] }}</code>.</div>
   {% endfor %}
   <table class="history">
     <tr><th>Evaluated</th><th>Facility day</th><th>Recommended</th><th>Decided</th><th>Notes</th></tr>

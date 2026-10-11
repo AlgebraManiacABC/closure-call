@@ -36,7 +36,8 @@ ap.add_argument("--db", help="'local' for the SQLite file instead of DATABASE_UR
 args = ap.parse_args()
 
 store = get_store(args.db)
-accounts = Accounts(store.engine)
+accounts = Accounts(store.engine, store.audit)
+actor = f"{getpass.getuser()} (command line)"
 print(f"Accounts in {store.url_safe.split('@')[-1]}")
 try:
     if args.command == "list":
@@ -48,13 +49,13 @@ try:
     elif not args.username:
         sys.exit("username is required")
     elif args.command == "add":
-        accounts.add(args.username, args.name or args.username, args.role, ask_password())
+        accounts.add(args.username, args.name or args.username, args.role, ask_password(), actor=actor)
         print(f"Added {args.username} ({args.role}).")
     elif args.command == "passwd":
-        accounts.set_password(args.username, ask_password())
+        accounts.set_password(args.username, ask_password(), actor=actor)
         print(f"Password changed for {args.username}; their existing sessions are signed out.")
     else:
-        accounts.set_disabled(args.username, args.command == "disable")
+        accounts.set_disabled(args.username, args.command == "disable", actor=actor)
         print(f"{args.username} {args.command}d.")
 except AuthError as e:
     sys.exit(f"Not done: {e}")

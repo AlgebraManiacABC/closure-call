@@ -32,7 +32,7 @@ templates = Jinja2Templates(directory=HERE / "templates")
 store = get_store(os.environ.get("DB") or None)
 state = service.AppState()
 state.restore(store)  # survive restarts and redeploys at the last evaluated location
-accounts = auth.Accounts(store.engine)
+accounts = auth.Accounts(store.engine, store.audit)
 PUBLIC_PATHS = ("/login", "/healthz", "/static/")
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
@@ -238,7 +238,7 @@ def change_my_password(request: Request, current: str = Form(...), new: str = Fo
     if new != repeat:
         return back("/account", "The new passwords do not match")
     try:
-        accounts.set_password(u.username, new)
+        accounts.set_password(u.username, new, actor=u.actor)
     except auth.AuthError as e:
         return back("/account", str(e))
     # The password fingerprint changed, so issue a fresh session for this browser.
@@ -255,8 +255,9 @@ def change_my_password(request: Request, current: str = Form(...), new: str = Fo
 def admin_page(request: Request):
     if (denied := sysadmins_only(request)):
         return denied
-    return render(request, "admin.html", users=accounts.list(), counts=store.counts(), erasures=store.erasures(),
-                  ROLES=auth.ROLES, ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS)
+    verify = store.audit.verify() if request.query_params.get("verify") else None
+    return render(request, "admin.html", users=accounts.list(), counts=store.counts(), audit=store.audit.entries(100),
+                  audit_verify=verify, ROLES=auth.ROLES, ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS)
 
 
 @app.post("/admin/users")
@@ -265,7 +266,7 @@ def admin_add_user(request: Request, username: str = Form(...), display_name: st
     if (denied := sysadmins_only(request)):
         return denied
     try:
-        accounts.add(username, display_name, role_name, password)
+        accounts.add(username, display_name, role_name, password, actor=me(request).actor)
     except auth.AuthError as e:
         return back("/admin#accounts", str(e))
     return back("/admin#accounts")
@@ -278,7 +279,7 @@ def admin_set_disabled(username: str, request: Request, disabled: str = Form(...
     if username == me(request).username:
         return back("/admin#accounts", "You cannot disable your own account")
     try:
-        accounts.set_disabled(username, disabled == "1")
+        accounts.set_disabled(username, disabled == "1", actor=me(request).actor)
     except auth.AuthError as e:
         return back("/admin#accounts", str(e))
     return back("/admin#accounts")
@@ -289,7 +290,7 @@ def admin_reset_password(username: str, request: Request, password: str = Form(.
     if (denied := sysadmins_only(request)):
         return denied
     try:
-        accounts.set_password(username, password)
+        accounts.set_password(username, password, actor=me(request).actor)
     except auth.AuthError as e:
         return back("/admin#accounts", str(e))
     return back("/admin#accounts")
@@ -495,7 +496,8 @@ def outbox_page(request: Request, e: str | None = None):
 def history_page(request: Request):
     verify = store.verify_chain() if request.query_params.get("verify") else None
     return render(request, "history.html", rows=store.history(limit=100), verify=verify,
-                  erasures=store.erasures(), tz=state.facility.pin.time_zone)
+                  erasures=[e for e in store.audit.entries(200) if e["action"] == "record_erased"],
+                  tz=state.facility.pin.time_zone)
 
 
 @app.get("/raw/{fetch_id}")

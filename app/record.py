@@ -25,6 +25,7 @@ import sqlalchemy as sa
 from dotenv import load_dotenv
 
 from .agent import AgentReport
+from .audit import AuditLog
 from .rules import THRESHOLDS_PATH, Inputs, Recommendation, evaluate, rules_version, thresholds_text
 from .sources.http import Fetched
 
@@ -114,6 +115,7 @@ class Store:
         self._lock = threading.RLock()  # re-entrant: _append can run inside a caller's transaction
         meta.create_all(self.engine)
         self._install_triggers()
+        self.audit = AuditLog(self.engine)  # account changes and erasures; never dropped by erase_all
 
     @property
     def url_safe(self) -> str:
@@ -389,6 +391,9 @@ class Store:
         if len(reason.strip()) < 10:
             raise RecordError("give a reason of at least 10 characters")
         before = self.counts()
+        details = {"reason": reason.strip(), "previous_entries": before["entries"],
+                   "previous_by_kind": before["by_kind"], "previous_raw_responses": before["raw_responses"],
+                   "previous_head": before["head"]}
         with self._lock:
             with self.engine.begin() as c:
                 meta.drop_all(c)
@@ -396,10 +401,10 @@ class Store:
                     c.exec_driver_sql("DROP FUNCTION IF EXISTS closure_call_append_only()")
             meta.create_all(self.engine)
             self._install_triggers()
-            return self._append("record_erased", "all",
-                                {"reason": reason.strip(), "previous_entries": before["entries"],
-                                 "previous_by_kind": before["by_kind"], "previous_raw_responses": before["raw_responses"],
-                                 "previous_head": before["head"]}, erased_by)
+            # The admin log survives every erasure, so erasures chain there; the new record links to it.
+            a = self.audit.append("record_erased", erased_by, "decision record", details)
+            return self._append("record_erased", "all", {**details, "admin_log_seq": a["seq"],
+                                                         "admin_log_hash": a["hash"]}, erased_by)
 
     def erasures(self) -> list[dict]:
         with self.engine.connect() as c:

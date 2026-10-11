@@ -151,7 +151,35 @@ def test_erase_needs_confirmation_and_password_and_leaves_a_trace():
     e = store.erasures()[0]
     assert e["actor"] == "Test Admin (@admin, sysadmin)" and e["payload"]["previous_head"] == before["head"]
     assert store.verify_chain()["ok"] and accounts.get("mgr") is not None  # accounts survive
-    assert "Earlier history was erased" in client("rev").get("/history").text
+    assert "History was erased" in client("rev").get("/history").text
+    first = store.erasures()[0]["payload"]
+    log_entry = next(x for x in store.audit.entries() if x["action"] == "record_erased")
+    assert first["admin_log_hash"] == log_entry["hash"]  # the new record links to its admin log entry
+
+
+def test_admin_log_keeps_every_erasure_and_account_change():
+    import sqlalchemy as sa
+    from app.audit import admin_log
+    admin = client("admin")
+    admin.post("/admin/erase", data={"confirm": "ERASE", "reason": "second erasure for the test", "password": PW["admin"]})
+    admin.post("/admin/erase", data={"confirm": "ERASE", "reason": "third erasure for the test", "password": PW["admin"]})
+    actions = [e["action"] for e in store.audit.entries()]
+    assert actions.count("record_erased") >= 2  # earlier erasures survive later ones
+    assert {"account_added", "account_disabled", "password_changed"} <= set(actions)
+    added = next(e for e in store.audit.entries() if e["action"] == "account_added" and e["target"] == "newrev")
+    assert added["actor"] == "Test Admin (@admin, sysadmin)" and "password" not in str(added["details"]).lower()
+    assert store.audit.verify()["ok"]
+    for stmt in (admin_log.update().values(actor="someone else"), admin_log.delete()):
+        try:
+            with store.engine.begin() as c:
+                c.execute(stmt)
+            raise AssertionError("admin log was modified")
+        except sa.exc.DatabaseError as e:
+            assert "append-only" in str(e)
+    with store.engine.begin() as c:  # someone with database access disables the trigger and edits an entry
+        c.exec_driver_sql("DROP TRIGGER admin_log_no_update")
+        c.execute(admin_log.update().where(admin_log.c.action == "record_erased").values(actor="nobody"))
+    assert not store.audit.verify()["ok"]
 
 
 def test_users_change_their_own_password():
