@@ -9,7 +9,7 @@ import threading
 import time as _time
 from datetime import date, datetime, timedelta, timezone
 
-from .agent import answer_question, investigate
+from .agent import answer_question
 from .collect import collect
 from .facility import Facility, Pin, load_facility, load_roster, repin_to_point
 from .notify import Decided, build_package
@@ -101,30 +101,12 @@ def facility_for(inputs: Inputs) -> Facility:
 
 # ---------- steps ----------
 
-def check(store: Store, facility: Facility, day: date, actor: str = "system", background: bool = True) -> str:
-    """Fetch, evaluate and record now; investigate with the agent in the background."""
+def check(store: Store, facility: Facility, day: date, actor: str = "system") -> str:
+    """Fetch, evaluate and record. No AI here: the recommendation and its explanation come from the rules
+    engine, so the page is complete at once. AI is used only after the manager decides."""
     inputs, fetched = collect(facility, day)
     rec = evaluate(inputs)
-    eid = store.record_evaluation(inputs, rec, fetched, actor=actor).id
-
-    def agent_step():
-        report, extra = investigate(inputs, rec)
-        store.record_agent_report(eid, report, extra)
-
-    if background:
-        _run_bg(eid, "agent", agent_step)
-    else:
-        agent_step()
-    return eid
-
-
-def investigate_later(store: Store, eid: str):
-    """Run the agent for an evaluation that has no report yet (e.g. a monitor run, or a failed attempt)."""
-    if "agent" in busy(eid):
-        return
-    d = store.load(eid)
-    _errors.pop(eid, None)
-    _run_bg(eid, "agent", lambda: store.record_agent_report(eid, *investigate(d["inputs"], d["recommendation"])))
+    return store.record_evaluation(inputs, rec, fetched, actor=actor).id
 
 
 def ask(store: Store, eid: str, question: str, asked_by: str) -> str:
@@ -139,7 +121,9 @@ def start_package(store: Store, eid: str, use_agent: bool = True):
         d = store.load(eid)
         dp = store.latest_decision(eid)["payload"]
         decided = Decided(posture=dp["posture"], label=dp["posture_label"], delay_hours=dp["delay_hours"],
-                          dismissal_time=dp["dismissal_time"], action=dp["action"])
+                          dismissal_time=dp["dismissal_time"], action=dp["action"],
+                          decided_by=store.latest_decision(eid)["actor"], reason=dp.get("reason", ""),
+                          recommended_label=dp.get("recommended_label", ""))
         pkg = build_package(facility_for(d["inputs"]), load_roster(), d["inputs"], d["recommendation"], decided,
                             use_agent=use_agent)
         store.record_notification_package(eid, pkg)
@@ -185,7 +169,6 @@ def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "
     if (prev is None and rec.posture != "normal") or (prev is not None and prev[0] != rec.posture):
         reason = (f"Recommendation changed from {prev[0].replace('_', ' ')} to {rec.posture.replace('_', ' ')}."
                   if prev else "New weather recommendation needs your decision.")
-        _run_bg(eid, "agent", lambda: store.record_agent_report(eid, *investigate(inputs, rec)))
     elif rec.posture != "normal" and rec.announce_by and prev:
         # A decision on ANY evaluation for this day counts, e.g. one the manager made from "Check now".
         decided = any(h["day"] == str(day) and h["decision"] for h in store.history(f.id, limit=200))

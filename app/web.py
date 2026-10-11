@@ -117,17 +117,55 @@ def short_posture(posture: str, delay_hours=None, dismissal=None, tz=None) -> st
     return {"normal": "Open", "unscheduled_leave": "Open · leave or telework allowed", "closure": "Closed"}[posture]
 
 
-def reason_rows(findings, inputs, evidence) -> list[dict]:
+_ELEV_RE = re.compile(r"\b(above|below|over|under)\s+(\d{1,2},\d{3}|\d{3,5})\s*(?:feet|ft)\b", re.I)
+# Which forecast check best shows "what is expected here" for each hazard's alerts.
+_LOCAL_FIELD = {"wind": "gust_mph", "tropical": "gust_mph", "winter": "snow_storm_in", "flood": "gauge_stage_held_ft"}
+_LOCAL_NAME = {"gust_mph": "wind gusts", "snow_storm_in": "snow in 12 hours", "gauge_stage_held_ft": "the river"}
+
+
+def applies_here(alert, inputs, rec) -> list[str]:
+    """Plain-code answers to "does this alert apply to us?", from the recorded data only."""
+    notes = [f"NWS returned this alert for the facility's exact location ({inputs.lat:.3f}, {inputs.lon:.3f})."]
+    elev = inputs.elevation_ft
+    seen = set()
+    for word, num in _ELEV_RE.findall(f"{alert.headline}\n{alert.description}"):
+        limit = int(num.replace(",", ""))
+        up = word.lower() in ("above", "over")
+        if (up, limit) in seen:
+            continue
+        seen.add((up, limit))
+        side = "above" if up else "below"
+        if elev is None:
+            notes.append(f"Part of this alert is for elevations {side} {limit:,} ft; the facility's elevation is not recorded.")
+        else:
+            inside = elev >= limit if up else elev <= limit
+            notes.append(f"Part of this alert is for elevations {side} {limit:,} ft. The facility is at {elev:,.0f} ft, "
+                         f"so that part {'applies' if inside else 'does not apply'} here.")
+    field = _LOCAL_FIELD.get(alert.hazard)
+    checks = [c for c in rec.checks if c.field == field and c.peak is not None]
+    if checks:
+        worst = max(checks, key=lambda c: (c.crossed, c.level))
+        level = "warning" if any(c.crossed and c.level == 2 for c in checks) else \
+                "advisory" if any(c.crossed for c in checks) else None
+        unit = worst.unit.split(" ")[0]
+        notes.append(f"The forecast for the facility itself peaks at {worst.peak:g} {unit} of {_LOCAL_NAME[field]}: "
+                     + (f"{level} level." if level else "below advisory level, so the alert covers a wider area than "
+                        "the forecast at this exact point."))
+    return notes
+
+
+def reason_rows(findings, inputs, evidence, rec=None) -> list[dict]:
     """One row per finding: a one-line title and when, with the details behind it."""
     rows = []
     for f in findings:
         if f.kind == "alert":
+            alert = next((a for a in inputs.alerts if a.id == f.alert_id), None)
             row = {"title": f"NWS {f.alert_event}", "sub": f"NWS rates it {f.alert_certainty.lower()}",
-                   "hazard": f.hazard,
+                   "hazard": f.hazard, "applies": applies_here(alert, inputs, rec) if alert and rec else [],
                    "quotes": [e for e in evidence if e.alert_id == f.alert_id], "alert_id": f.alert_id}
         else:
             level = LEVEL_NAMES.get(f.rule_id, "warning level" if f.level == 2 else "advisory level")
-            row = {"title": FIELD_TITLES.get(f.field, f.rule_id).format(v=f.value), "hazard": f.hazard,
+            row = {"title": FIELD_TITLES.get(f.field, f.rule_id).format(v=f.value), "hazard": f.hazard, "applies": [],
                    "sub": f"{level} is {f.threshold:g} {f.unit.split()[0]}, so {abs(f.margin):g} "
                           f"{'over' if f.margin >= 0 else 'under'}", "quotes": [], "alert_id": None}
         src = inputs.sources[f.source_key]
@@ -456,9 +494,9 @@ def evaluation_page(eid: str, request: Request):
     replay = store.replay(eid) if request.query_params.get("replay") else None
     report = d["agent_report"]
     evidence = report.evidence if report else []
-    reasons = reason_rows(rec.decisive, inputs, evidence)
+    reasons = reason_rows(rec.decisive, inputs, evidence, rec)
     decisive_keys = {(f.rule_id, f.alert_id) for f in rec.decisive}
-    also = reason_rows([f for f in rec.findings if (f.rule_id, f.alert_id) not in decisive_keys], inputs, evidence)
+    also = reason_rows([f for f in rec.findings if (f.rule_id, f.alert_id) not in decisive_keys], inputs, evidence, rec)
     shown_alerts = {r["alert_id"] for r in reasons + also}
     other_quotes = [e for e in evidence if e.alert_id not in shown_alerts]
     decided = None
@@ -472,19 +510,6 @@ def evaluation_page(eid: str, request: Request):
                   decision=decision, package=package["payload"]["package"] if package else None, send=send,
                   busy=service.busy(eid), bg_error=service.last_error(eid), replay=replay, tz=inputs.time_zone,
                   manager=state.manager, raw=d["evaluation"]["payload"]["raw_fetches"])
-
-
-@app.post("/e/{eid}/investigate")
-def investigate_now(eid: str, request: Request):
-    if (denied := managers_only(request, f"/e/{eid}")):
-        return denied
-    if not auth.model_actions.hit(me(request).username):
-        return back(f"/e/{eid}", "Too many checks and questions in the last 10 minutes; please wait a few minutes")
-    try:
-        service.investigate_later(store, eid)
-    except RecordError as e:
-        return back(f"/e/{eid}", str(e))
-    return back(f"/e/{eid}")
 
 
 @app.get("/thresholds", response_class=HTMLResponse)
@@ -518,6 +543,8 @@ def evaluation_status(eid: str):
 
 @app.post("/e/{eid}/ask")
 def ask(eid: str, request: Request, question: str = Form(...)):
+    if not store.load(eid)["decisions"]:
+        return back(f"/e/{eid}", "Questions to the AI open after a decision is recorded")
     if not auth.model_actions.hit(me(request).username):
         return back(f"/e/{eid}#qa", "Too many checks and questions in the last 10 minutes; please wait a few minutes")
     if question.strip():
@@ -542,6 +569,8 @@ def decide(eid: str, request: Request, action: str = Form(...), posture: str = F
 def package(eid: str, request: Request):
     if (denied := managers_only(request, f"/e/{eid}")):
         return denied
+    if not auth.model_actions.hit(me(request).username):
+        return back(f"/e/{eid}#notify", "Too many AI requests in the last 10 minutes; please wait a few minutes")
     try:
         service.start_package(store, eid)
     except RecordError as e:

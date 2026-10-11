@@ -76,6 +76,17 @@ def test_flood_prone_commuters_get_flood_note():
     assert "Turn Around" in notes and pkg.reason_phrase == "flooding on the Test River"
 
 
+def test_decision_summary_states_the_override_and_reason():
+    inputs = make(gusts([6, 7], 62))
+    rec = evaluate(inputs)
+    d = Decided(posture="closure", label="Closed", action="override", decided_by="Luke Dunn (@luke, manager)",
+                reason="Plows cannot reach the lot before 9 AM.", recommended_label=rec.posture_label)
+    pkg = build_package(FAC, ROSTER, inputs, rec, d, use_agent=False)
+    assert pkg.summary_source == "template"
+    assert "Luke Dunn overrode" in pkg.summary and "Plows cannot reach the lot" in pkg.summary
+    assert f"Notices go to {pkg.counts['notify']} employees" in pkg.summary
+
+
 def test_draft_checks_catch_missing_facts():
     d = Decided(posture="delayed_arrival", label="x", delay_hours=2)
     day = date(2026, 10, 13)

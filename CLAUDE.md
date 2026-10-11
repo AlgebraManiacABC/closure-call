@@ -375,3 +375,13 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   Reason rows carry a hazard tag (flood/wind/winter/tropical); hotspots and the map have a
   tropical group; storm surge triggers the flood-prone commute note. On Oct 11 no tropical
   alerts were active in the US, so this is tested only with synthetic alerts.
+- AI only after the decision (Oct 11, user's call): "Check now" and the monitor no longer run the
+  investigation agent; the explanation paragraph is the rules engine's; caveats are gone. "Does
+  this alert apply here?" is answered in code (`web.applies_here`): the alert was returned for the
+  exact coordinates, elevation limits in the text vs the facility elevation, and the forecast at
+  the point. After a decision, one AI request ("Write summary and draft notices") writes a decision
+  summary for leadership plus each group's notices (`notify.draft_groups`). Code checks the summary
+  names the decider followed by approved/overrode, has the day and key facts, and uses no gendered
+  pronouns; otherwise `summary_template` is used. Questions to the AI open only after a decision.
+  `app/agent.py`'s investigation remains in the code but is no longer called by the app.
+- Always use the Write/Edit tools for files and patch scripts, not bash heredocs.

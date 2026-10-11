@@ -10,6 +10,7 @@ length and for the key facts; a draft that fails is replaced by a code template.
 
 Nothing is sent from here. Sending is simulated and needs the manager's approval (see record.py).
 """
+import re
 from datetime import date, datetime, time, timedelta
 
 from pydantic import BaseModel
@@ -31,6 +32,8 @@ class Decided(BaseModel):
     dismissal_time: str | None = None  # HH:MM local
     action: str = "approve"
     decided_by: str = ""
+    reason: str = ""  # the manager's written reason (required for overrides)
+    recommended_label: str = ""
 
 
 class Recipient(BaseModel):
@@ -57,6 +60,7 @@ class GroupDraft(BaseModel):
 
 class Drafts(BaseModel):
     """Structured output from the drafting model."""
+    decision_summary: str = ""
     groups: list[GroupDraft]
 
 
@@ -83,6 +87,9 @@ class NotificationPackage(BaseModel):
     groups: list[GroupMessage]
     drafting: str  # how the drafts were produced
     counts: dict[str, int]
+    summary: str = ""  # the decision summary for the manager's email to leadership
+    summary_source: str = ""  # "agent" or "template"
+    summary_problems: list[str] = []
 
 
 class OutboxMessage(BaseModel):
@@ -269,9 +276,13 @@ def build_recipients(facility: Facility, roster: list[Employee], day: date, d: D
 
 # ---------- drafting ----------
 
-DRAFT_PROMPT = """You draft employee notices for a federal facility's weather operating status.
+DRAFT_PROMPT = """You write up a facility manager's weather decision after it has been made.
 Plain code has already decided the posture, who is in each group, and the facts each group must be told.
-Write one SMS and one email per group. Rules:
+First write decision_summary: ONE paragraph of at most 110 words the manager can paste into an email to
+leadership. State the decision and the day, who decided and whether they approved the recommendation or
+overrode it (quote their reason if one is given), the cause, and who is being notified. Use only the facts
+given; no caveats, no hedging, no new numbers. Refer to people by name, never with he, she, his or her.
+Then write one SMS and one email per group. Rules:
 - Keep every fact for the group exactly; do not add instructions, numbers, times or promises.
 - SMS: under 300 characters, starts with the facility and day, includes the key time or delay.
 - Email: a clear subject naming the status and day; body of 3-5 short sentences: what is happening and
@@ -305,20 +316,39 @@ def template(group: str, facts: str, d: Decided, facility_label: str, day: date,
     return GroupDraft(group=group, sms=sms, email_subject=f"{d.label}: {day:%A %b %d}", email_body=body)
 
 
+def summary_template(d: Decided, facility_label: str, day: date, why: str, timing: str, counts: dict) -> str:
+    """Code-written decision summary, used when the AI is not available or its summary fails the checks."""
+    who = d.decided_by.split(" (@")[0] or "The facility manager"
+    if d.action == "override":
+        s = (f"{who} overrode the recommended status ({d.recommended_label}) and set {facility_label} to "
+             f"{d.label} for {day:%A, %B %d}. Reason given: \"{d.reason}\" ")
+    else:
+        s = f"{who} approved the recommended status for {facility_label} on {day:%A, %B %d}: {d.label}. "
+    s += f"Cause: {why}. {timing} "
+    return s + (f"Notices go to {counts['notify']} employees; {counts['skip']} are not notified "
+                "(on detail elsewhere, on leave, or not affected).")
+
+
 def draft_groups(needed: dict[str, str], d: Decided, facility_label: str, day: date, why: str,
-                 manager: Employee) -> tuple[list[GroupMessage], str]:
-    """Agent drafts for each group, validated; templates where the agent fails."""
+                 manager: Employee, context: str = "") -> tuple[list[GroupMessage], str, str]:
+    """One AI request after the decision: the decision summary and each group's drafts, all checked in code;
+    templates replace anything that fails. Returns (groups, status, the AI's summary or "")."""
     agent_drafts: dict[str, GroupDraft] = {}
+    summary = ""
     status = "template (agent not used)"
     if needed:
         brief = "\n".join(f"- group {g} ({GROUP_DESCRIPTIONS[g]}): {facts}" for g, facts in needed.items())
-        task = (f"Facility: {facility_label}. Day: {day:%A %B %d}. Status: {d.label}. Cause: {why}. "
-                f"Facility manager: {manager.name}, {manager.phone}.\nGroups and the facts each must be told:\n{brief}")
+        task = (f"Facility: {facility_label}. Day: {day:%A %B %d}. Status: {d.label}. Cause: {why}.\n{context}\n"
+                f"Contact named at the end of the employee notices only (not the decider): {manager.name}, "
+                f"{manager.phone}.\n"
+                f"Groups and the facts each must be told:\n{brief}")
         try:
-            agent = Agent(model=make_model(max_tokens=2500, temperature=0.3), system_prompt=DRAFT_PROMPT,
+            agent = Agent(model=make_model(max_tokens=3000, temperature=0.3), system_prompt=DRAFT_PROMPT,
                           callback_handler=None)
             res = agent(task, structured_output_model=Drafts)
-            agent_drafts = {g.group: g for g in (res.structured_output.groups if res.structured_output else [])}
+            if res.structured_output:
+                agent_drafts = {g.group: g for g in res.structured_output.groups}
+                summary = res.structured_output.decision_summary.strip()
             status = "agent drafts, validated in code"
         except Exception as e:
             status = f"templates (agent failed: {type(e).__name__})"
@@ -336,7 +366,7 @@ def draft_groups(needed: dict[str, str], d: Decided, facility_label: str, day: d
         out.append(GroupMessage(group=g, description=GROUP_DESCRIPTIONS[g], facts=facts, count=0, sms=use.sms,
                                 email_subject=use.email_subject, email_body=use.email_body,
                                 source="agent" if use is a else "template", problems=problems))
-    return out, status
+    return out, status, summary
 
 
 def build_package(facility: Facility, roster: list[Employee], inputs: Inputs, rec: Recommendation,
@@ -349,13 +379,31 @@ def build_package(facility: Facility, roster: list[Employee], inputs: Inputs, re
         if r.notify and r.group not in groups_needed:
             groups_needed[r.group] = group_facts(d, r.group, rec.unscheduled_leave_option, facility)
     label = facility.display_name
+    counts = {"notify": sum(r.notify for r in recipients), "skip": sum(not r.notify for r in recipients),
+              "sms": sum("sms" in r.channels for r in recipients if r.notify),
+              "email": sum("email" in r.channels for r in recipients if r.notify),
+              "personal_notes": sum(bool(r.personal_notes) for r in recipients)}
+    decider = d.decided_by.split(" (@")[0] or "The facility manager"
+    context = (f"Decided by: {decider}, who {'approved the recommendation' if d.action == 'approve' else 'overrode the recommendation'}. "
+               f"Recommended: {d.recommended_label or rec.posture_label}. "
+               f"Decided: {d.label}. Reason given: {d.reason or 'none'}. Timing: {rec.timing_explanation} "
+               f"Notifying {counts['notify']} employees; {counts['skip']} not notified.")
+    tpl_summary = summary_template(d, label, inputs.day, why, rec.timing_explanation, counts)
+    ai_summary = ""
     if use_agent:
-        groups, status = draft_groups(groups_needed, d, label, inputs.day, why, manager)
+        groups, status, ai_summary = draft_groups(groups_needed, d, label, inputs.day, why, manager, context)
     else:
         groups = [GroupMessage(group=g, description=GROUP_DESCRIPTIONS[g], facts=f, count=0, source="template",
                                **template(g, f, d, label, inputs.day, why, manager).model_dump(exclude={"group"}))
                   for g, f in groups_needed.items()]
         status = "templates (agent not requested)"
+    summary_problems = _check(ai_summary, d, inputs.day, 900) if ai_summary else []
+    if ai_summary and re.search(r"\b(he|she|his|her|hers|him)\b", ai_summary, re.I):
+        summary_problems.append("uses a gendered pronoun for a person")
+    verb = "overr" if d.action == "override" else "approv"
+    if ai_summary and not re.search(re.escape(decider) + r"[^.]{0,30}?\b" + verb, ai_summary, re.I):
+        summary_problems.append(f"does not say that {decider} {'overrode' if d.action == 'override' else 'approved'} it")
+    use_ai = bool(ai_summary) and not summary_problems
     for gm in groups:
         gm.count = sum(1 for r in recipients if r.notify and r.group == gm.group)
     if d.posture in ("closure", "delayed_arrival"):
@@ -364,13 +412,10 @@ def build_package(facility: Facility, roster: list[Employee], inputs: Inputs, re
         send_by = inputs.at(time.fromisoformat(d.dismissal_time)) - timedelta(hours=1)
     else:
         send_by = None
-    counts = {"notify": sum(r.notify for r in recipients), "skip": sum(not r.notify for r in recipients),
-              "sms": sum("sms" in r.channels for r in recipients if r.notify),
-              "email": sum("email" in r.channels for r in recipients if r.notify),
-              "personal_notes": sum(bool(r.personal_notes) for r in recipients)}
     return NotificationPackage(facility_label=label, day=inputs.day, decided=d, reason_phrase=why,
                                urgent=d.posture in URGENT, send_by=send_by, recipients=recipients, groups=groups,
-                               drafting=status, counts=counts)
+                               drafting=status, counts=counts, summary=ai_summary if use_ai else tpl_summary,
+                               summary_source="agent" if use_ai else "template", summary_problems=summary_problems)
 
 
 def outbox(pkg: NotificationPackage) -> list[OutboxMessage]:

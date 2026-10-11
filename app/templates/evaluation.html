@@ -72,6 +72,8 @@
       <span class="r-when">{{ r.f.first_hour|t(tz, "%a %I %p") }}&ndash;{{ (r.f.last_hour + HOUR)|t(tz, "%I %p") }}</span></summary>
     <div class="r-body">
       <p>{{ r.sub }}.</p>
+      {% if r.applies %}<p class="small"><b>Does it apply here?</b></p>
+      <ul class="small applies">{% for n in r.applies %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
       {% for e in r.quotes %}
       <blockquote>&ldquo;{{ e.quote }}&rdquo;{% if e.note %}<div class="note">{{ e.note }}</div>{% endif %}</blockquote>
       {% endfor %}
@@ -90,9 +92,6 @@
   </div>
   <div class="legend"><span class="hour l0"></span>clear <span class="hour l1"></span>advisory <span class="hour l2"></span>warning</div>
 
-  {% if "agent" in busy and not report %}
-  <p class="working">AI is reading the NWS alert text and testing what-ifs. The explanation, caveats and quotes appear here when it finishes.</p>
-  {% endif %}
 
   {% if also %}
   <details class="more"><summary>Also noted ({{ also|length }}), not deciding</summary>
@@ -111,36 +110,32 @@
   </details>
 
   {% set agent_wrote = report and report.ran %}
-  <details class="more"><summary>Full explanation (for email)</summary>
+  <details class="more"><summary>Plain-language explanation</summary>
     <p class="rationale" id="rationale">{{ report.rationale if agent_wrote else rec.summary|friendly }}</p>
     <div class="copy-row">
       <button type="button" id="copy-rationale">Copy paragraph</button>
       <span class="muted small" id="copy-status"></span>
     </div>
-    {% if not agent_wrote %}
-      <p class="muted small">Written by the rules engine{% if report %} ({{ report.reason }}){% endif %}.</p>
-      {% if manager_view and rec.posture != "normal" and "agent" not in busy %}
-      <form method="post" action="/e/{{ eid }}/investigate"><button>Investigate with AI and explain</button></form>
-      {% endif %}
-    {% endif %}
+    <p class="muted small">{{ "Written by the AI investigation (earlier version of the app)." if agent_wrote else "Written by the rules engine from the recorded data." }}</p>
   </details>
   <script>
-  document.getElementById("copy-rationale").addEventListener("click", function () {
-    var text = document.getElementById("rationale").innerText, status = document.getElementById("copy-status");
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-copy], #copy-rationale");
+    if (!btn) return;
+    var el = document.getElementById(btn.dataset.copy || "rationale");
+    var note = btn.nextElementSibling;
     function selectIt() {
-      var r = document.createRange(); r.selectNodeContents(document.getElementById("rationale"));
-      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); status.textContent = "Selected: press Ctrl+C";
+      var r = document.createRange(); r.selectNodeContents(el);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      btn.textContent = "Selected: press Ctrl+C";
     }
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(function () { status.textContent = "Copied"; }, selectIt);
+      navigator.clipboard.writeText(el.innerText).then(function () { btn.textContent = "Copied"; }, selectIt);
     } else { selectIt(); }
   });
   </script>
   {% if report %}
-  {% if report.caveats %}
-  <details class="more"><summary>Caveats ({{ report.caveats|length }})</summary>
-    <ul>{% for c in report.caveats %}<li>{{ c }}</li>{% endfor %}</ul></details>
-  {% endif %}
+
   {% if other_quotes %}
   <details class="more"><summary>More from the alert text ({{ other_quotes|length }})</summary>
     {% for e in other_quotes %}<blockquote><b>{{ e.alert_event }}:</b> &ldquo;{{ e.quote }}&rdquo;</blockquote>{% endfor %}
@@ -183,6 +178,15 @@
       <a href="/outbox?e={{ eid }}">Open outbox</a></p>
   {% endif %}
   {% if package %}
+    {% if package.summary %}
+    <h3>Decision summary</h3>
+    <p class="rationale" id="decision-summary">{{ package.summary }}</p>
+    <div class="copy-row">
+      <button type="button" data-copy="decision-summary">Copy summary</button>
+      <span class="muted small">{{ "Written by AI after the decision, checked in code" if package.summary_source == "agent" else "Written from the record by code" }}{% if package.summary_problems %} (AI summary replaced: {{ package.summary_problems|join("; ") }}){% endif %}</span>
+    </div>
+    <h3>Notices</h3>
+    {% endif %}
     <p class="headline">{{ package.counts.notify }} to notify &middot; {{ package.counts.skip }} skipped</p>
     <p class="muted small">{{ "Text and email" if package.urgent else "Preferred channel" }}{% if package.send_by %} &middot; send by {{ package.send_by|t(tz, "%a %I:%M %p") }}{% endif %}</p>
     {% for g in package.groups %}
@@ -216,16 +220,18 @@
     </form>
     {% endif %}
   {% elif "package" in busy %}
-    <p class="working">Sorting the roster and drafting a message for each group&hellip;</p>
+    <p class="working">Sorting the roster; AI is writing the decision summary and a message for each group&hellip;</p>
   {% elif manager_view %}
-    <form method="post" action="/e/{{ eid }}/package"><button class="primary big">Draft notifications</button></form>
+    <form method="post" action="/e/{{ eid }}/package"><button class="primary big">Write summary and draft notices</button></form>
+    <p class="muted small">Uses AI once: a summary of your decision for email, and a notice for each employee group.</p>
   {% else %}
     <p class="muted">No notifications drafted.</p>
   {% endif %}
 </section>
 {% endif %}
 
-<!-- 5. Ask -->
+<!-- 5. Ask (AI, after the decision) -->
+{% if decision %}
 <section class="card" id="qa">
   <h2>Ask about this</h2>
   {% for q in d.questions %}
@@ -239,8 +245,9 @@
     <input name="question" placeholder="e.g. Does the snow total apply to us?" required>
     <button>Ask</button>
   </form>
-  <p class="muted small">Answered only from the recorded inputs, and recorded too.</p>
+  <p class="muted small">Answered by AI only from the recorded inputs, and recorded too.</p>
 </section>
+{% endif %}
 
 <!-- 6. Evidence and record, closed by default -->
 <section class="card">

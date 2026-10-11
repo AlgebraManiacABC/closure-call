@@ -202,14 +202,22 @@ def test_brief_deliverables_are_on_the_pages():
     for rid in list(th["field_rules"]) + list(th["alert_rules"]):
         assert RULE_NAMES[rid] in page, rid  # every cutoff is listed, by its plain name
     assert "{road_recovery_hours}" not in page and "at least 3 hours" in page
-    # An evaluation the agent never investigated (e.g. a monitor run) still has a paragraph for email.
-    inp = make(gusts([6, 7], 62))
+    # No AI before the decision: the explanation is the rules engine's, and questions open only after deciding.
+    from datetime import datetime
+    from app.rules import AlertIn
+    from test_rules import TZ
+    alert = AlertIn(id="w1", event="Winter Storm Warning", hazard="winter", severity="Severe", certainty="Likely",
+                    urgency="Expected", starts=datetime(2026, 10, 12, 18, tzinfo=TZ), ends=None, headline="",
+                    sender="NWS", description="Total snow 10 to 20 inches, with up to 24 inches above 6000 feet.")
+    inp = make(alerts=[alert]).model_copy(update={"elevation_ft": 4800})
     eid = store.record_evaluation(inp, evaluate(inp), []).id
     mgr = client("mgr").get(f"/e/{eid}").text
-    assert 'id="rationale"' in mgr and "Written by the rules engine" in mgr and "Investigate with AI" in mgr
-    assert "Investigate with AI" not in client("rev").get(f"/e/{eid}").text
-    r = client("rev").post(f"/e/{eid}/investigate")
-    assert "error=" in r.headers["location"]
+    assert 'id="rationale"' in mgr and "Written by the rules engine" in mgr
+    assert "Investigate with AI" not in mgr and 'id="qa"' not in mgr
+    assert "error=" in client("mgr").post(f"/e/{eid}/ask", data={"question": "why?"}).headers["location"]
+    # "Does it apply here?" is answered in code.
+    assert "exact location" in mgr and "above 6,000 ft. The facility is at 4,800 ft, so that part does not apply" in mgr
+    assert "below advisory level, so the alert covers a wider area" in mgr
 
 
 def test_escalations_push_to_manager_devices_and_downgrades_do_not():
