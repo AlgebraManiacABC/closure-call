@@ -236,8 +236,9 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   - the group: essential, teleworking, office_telework_ready or office_no_telework;
   - the facts each group must be told per posture (OPM categories; closure means
     telework-ready staff work from home and others get weather and safety leave);
-  - personal notes (detailed in, early shift under a delay, flood-prone commute during a
-    flood, mobility/vision/cold-sensitivity);
+  - personal notes (detailed in, early shift under a delay, mobility/vision/cold-sensitivity);
+    during a flood or storm surge every group that still commutes gets "Turn Around, Don't Drown"
+    (`notify.travels_during_flood`; AI drafts missing it are replaced);
   - routing: sms+email for closure, delay and early dismissal; preferred channel for the
     unscheduled-leave option.
   One Strands structured-output call drafts an SMS and an email per group. `_check` rejects
@@ -373,7 +374,7 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   extended by road recovery. Hurricane, Tropical Storm and Storm Surge Watches are watches that
   upgrade to their warnings. Sources are the NHC/NWS product definitions in thresholds.json.
   Reason rows carry a hazard tag (flood/wind/winter/tropical); hotspots and the map have a
-  tropical group; storm surge triggers the flood-prone commute note. On Oct 11 no tropical
+  tropical group; storm surge triggers the flood safety line. On Oct 11 no tropical
   alerts were active in the US, so this is tested only with synthetic alerts.
 - AI only after the decision (Oct 11, user's call): "Check now" and the monitor no longer run the
   investigation agent; the explanation paragraph is the rules engine's; caveats are gone. "Does

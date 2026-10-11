@@ -3,7 +3,8 @@
 Plain code decides everything that matters:
   - who is notified or skipped, with a reason for each person (roster filter);
   - which group each person is in, and the facts that group must be told for the decided posture;
-  - personal notes (early shift, flood-prone commute, accessibility needs, detailed in);
+  - personal notes (early shift, accessibility needs, detailed in); the flood safety line goes to every
+    group that still commutes during a flood or storm surge;
   - channel routing (text and email for urgent postures, preferred channel otherwise).
 The model only drafts the wording of one SMS and one email per group. Code checks each draft for
 length and for the key facts; a draft that fails is replaced by a code template.
@@ -200,6 +201,17 @@ def group_facts(d: Decided, group: str, leave_option: bool, facility: Facility) 
     return None
 
 
+FLOOD_SAFETY = "Never drive through flooded roads: Turn Around, Don't Drown."
+
+
+def travels_during_flood(d: Decided, group: str, hazards: set[str]) -> bool:
+    """Everyone who still commutes while flooding or storm surge drives the decision gets the NWS safety line.
+    Teleworkers stay home, and a closure keeps everyone but emergency staff off the roads."""
+    if not ({"flood", "tropical"} & hazards) or group == "teleworking":
+        return False
+    return group == "essential" or d.posture != "closure"
+
+
 def personal_notes(s: DayStatus, d: Decided, hazards: set[str], leave_option: bool, facility: Facility) -> list[str]:
     e: Employee = s.employee
     notes = []
@@ -210,10 +222,6 @@ def personal_notes(s: DayStatus, d: Decided, hazards: set[str], leave_option: bo
             and s.location == "office":
         notes.append(f"Your shift normally starts at {clock(e.shift_start)}, so your delayed start is "
                      f"{clock(add_hours(e.shift_start, d.delay_hours))}.")
-    if e.commute_flood_prone and ({"flood", "tropical"} & hazards) and s.location == "office":
-        notes.append("Your usual route crosses flood-prone roads. Never drive through flooded roads (Turn Around, "
-                     "Don't Drown)" + ("; use unscheduled leave or telework if your route is affected." if leave_option
-                                       else "; call your supervisor if your route is affected."))
     types = {a["type"] for a in e.accessibility_needs}
     if s.location == "office" and d.posture != "closure":
         if "mobility" in types and "winter" in hazards:
@@ -364,6 +372,8 @@ def draft_groups(needed: dict[str, str], d: Decided, facility_label: str, day: d
         else:
             problems = [f"sms {p}" for p in _check(a.sms, d, day, SMS_MAX)] + \
                        [f"email {p}" for p in _check(a.email_subject + " " + a.email_body, d, day)]
+            if FLOOD_SAFETY in facts and "turn around" not in a.email_body.lower():
+                problems.append("email is missing the flood safety line")
         use = a if a is not None and not problems else tpl
         out.append(GroupMessage(group=g, description=GROUP_DESCRIPTIONS[g], facts=facts, count=0, sms=use.sms,
                                 email_subject=use.email_subject, email_body=use.email_body,
@@ -381,7 +391,10 @@ def build_package(facility: Facility, roster: list[Employee], inputs: Inputs, re
     groups_needed = {}
     for r in recipients:
         if r.notify and r.group not in groups_needed:
-            groups_needed[r.group] = group_facts(d, r.group, rec.unscheduled_leave_option, facility)
+            facts = group_facts(d, r.group, rec.unscheduled_leave_option, facility)
+            if travels_during_flood(d, r.group, {f.hazard for f in rec.decisive}):
+                facts += " " + FLOOD_SAFETY
+            groups_needed[r.group] = facts
     label = facility.display_name
     counts = {"notify": sum(r.notify for r in recipients), "skip": sum(not r.notify for r in recipients),
               "sms": sum("sms" in r.channels for r in recipients if r.notify),

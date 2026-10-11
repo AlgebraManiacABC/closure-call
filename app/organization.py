@@ -120,8 +120,9 @@ class Organization:
             "essential": "essential" in form, "telework_eligible": "telework_eligible" in form,
             "telework_days": [w for w in WEEKDAYS if w in form.get("telework_days", [])],
             "shift": {"start": _hm(form, "shift_start"), "end": _hm(form, "shift_end")},
-            "commute_miles": e.get("commute_miles", 0),  # kept for the data file; nothing uses it, so not on the form
-            "commute_flood_prone": "commute_flood_prone" in form,
+            # Kept for the data file but not on the form: nothing uses miles, and the flood safety line now goes
+            # to everyone who commutes during a flood.
+            "commute_miles": e.get("commute_miles", 0), "commute_flood_prone": e.get("commute_flood_prone", False),
             "contact": {"phone": phone, "email": email,
                         "preferred": "email" if form.get("preferred") == "email" else "sms"},
             "notes": form.get("notes", "").strip(),

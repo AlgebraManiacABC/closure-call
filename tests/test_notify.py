@@ -72,8 +72,14 @@ def test_flood_prone_commuters_get_flood_note():
     pkg, rec = package("closure", inputs=inp)
     assert rec.posture == "closure"
     pkg, _ = package("unscheduled_leave", inputs=inp)
-    notes = " ".join(by_id(pkg)["E017"].personal_notes)
-    assert "Turn Around" in notes and pkg.reason_phrase == "flooding on the Test River"
+    facts = {g.group: g.facts for g in pkg.groups}
+    assert all("Turn Around" in f for f in facts.values()) and pkg.reason_phrase == "flooding on the Test River"
+    assert all("Turn Around" in g.email_body for g in pkg.groups)  # everyone still commuting, not only some
+    pkg, _ = package("closure", inputs=inp)
+    facts = {g.group: g.facts for g in pkg.groups}
+    assert "Turn Around" in facts["essential"] and "Turn Around" not in facts["office_no_telework"]
+    pkg, _ = package("closure")  # wind, not flood: no flood line
+    assert not any("Turn Around" in g.facts for g in pkg.groups)
 
 
 def test_decision_summary_states_the_override_and_reason():
