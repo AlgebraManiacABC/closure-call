@@ -287,6 +287,14 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   `docker compose up -d --build` and polls https://DOMAIN/healthz. Commit before deploying.
   The firewall must allow TCP 22, 80 and 443. Enable Linode disk encryption if the region
   offers it.
+- LIVE (Oct 10): https://closure-call.algebramaniacabc.org on Linode 172.233.211.226 (Ubuntu
+  24.04, 1 CPU, 2 GB). Code is in /opt/closure-call, run with `docker compose`. The Let's
+  Encrypt cert is valid to Jan 8, 2027. The DNS A record is in Cloudflare and must stay
+  "DNS only" (grey cloud): proxied mode breaks Caddy's certificate and redirect. The
+  Linode's IP is on the Postgres allow list. The monitor runs every 15 min and watches
+  tomorrow. Redeploy with `scripts/deploy.sh root@172.233.211.226
+  closure-call.algebramaniacabc.org` after committing. Logs: `ssh root@172.233.211.226 'cd
+  /opt/closure-call && docker compose logs app --tail 50'`.
 - The agent once claimed the Augusta facility was "in the Lincoln valley". The prompts now
   forbid assuming a facility is inside a named area. Watch for this kind of geographic
   inference in demos.

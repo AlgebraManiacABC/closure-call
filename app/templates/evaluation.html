@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ POSTURE_NAMES[rec.posture] }}: {{ inputs.facility_label }}{% endblock %}
+{% block title %}{{ short }}: {{ inputs.facility_label }}{% endblock %}
 {% block head %}{% if busy %}
 <script>setTimeout(function () { location.reload(); }, 4000);</script>
 <noscript><meta http-equiv="refresh" content="4; url=/e/{{ eid }}"></noscript>
@@ -7,97 +7,100 @@
 {% block content %}
 {% set manager_view = role == "manager" %}
 
+<!-- 1. The answer -->
 <section class="posture-card {{ rec.posture }}">
-  <div class="eyebrow">Recommendation for {{ inputs.day.strftime("%A %b %d") }} &middot; {{ inputs.facility_label }}</div>
-  <div class="posture-label">{{ rec.posture_label }}</div>
-  <div class="posture-meta">
-    Confidence <b>{{ rec.confidence }}</b>
-    {% if rec.announce_by %} &middot; announce by <b>{{ rec.announce_by|t(tz, "%a %I:%M %p") }}</b>{% endif %}
-    &middot; evaluated {{ rec.evaluated_at|t(tz) }}
+  <div class="eyebrow">{{ inputs.day.strftime("%A %b %d") }} &middot; {{ inputs.facility_label }}</div>
+  <div class="posture-label"><span class="posture-prefix">Recommendation: </span>{{ short }}</div>
+  <div class="posture-opm">{{ rec.posture_label }}</div>
+  <div class="chips">
+    <details class="chip"><summary>Confidence: {{ rec.confidence }}</summary>
+      <ul>{% for r in rec.confidence_reasons %}<li>{{ r }}</li>{% endfor %}</ul></details>
+    {% if rec.announce_by %}<span class="chip">Announce by {{ rec.announce_by|t(tz, "%a %I:%M %p") }}</span>{% endif %}
   </div>
   {% if inputs.notes %}<div class="posture-note">{{ inputs.notes|join(" ") }}</div>{% endif %}
 </section>
 
 {% if decision %}
 <section class="decision-banner {{ decision.payload.action }}">
-  <b>{{ "Approved" if decision.payload.action == "approve" else "Overridden" }}:</b> {{ decision.payload.posture_label }}
-  <div class="small">by {{ decision.actor }} &middot; {{ decision.at|t(tz) }}{% if decision.payload.reason %} &middot; reason: &ldquo;{{ decision.payload.reason }}&rdquo;{% endif %}</div>
+  <b>{{ DID[decision.payload.action] }}: {{ decided_short }}</b>
+  <span class="small">&middot; {{ decision.actor }}, {{ decision.at|t(tz, "%a %I:%M %p") }}</span>
+  {% if decision.payload.reason %}<details><summary>Reason given</summary>&ldquo;{{ decision.payload.reason }}&rdquo;</details>{% endif %}
 </section>
 {% endif %}
 
 {% if bg_error %}<div class="flash error">{{ bg_error }}</div>{% endif %}
 
-<!-- Rationale -->
+<!-- 2. Why: one sentence, then one button per reason -->
 <section class="card">
   <h2>Why</h2>
-  {% if report %}
-    <p class="rationale">{{ report.rationale }}</p>
-    {% if report.caveats %}<ul class="caveats">{% for c in report.caveats %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}
-    {% if not report.ran %}<p class="muted small">{{ report.reason }} (rules engine summary shown)</p>{% endif %}
-  {% elif "agent" in busy %}
-    <p class="working">Reading NWS alert text, checking commute hours and testing what-ifs&hellip;</p>
-    <p class="muted">{{ rec.summary }}</p>
-  {% else %}
-    <p>{{ rec.summary }}</p>
-  {% endif %}
+  {% if "agent" in busy and not report %}<p class="working">Reading the NWS alert text and testing what-ifs&hellip;</p>{% endif %}
+  <p class="headline">{{ headline }}</p>
 
-  <h3>What drove it</h3>
-  <p>{{ rec.timing_explanation }}</p>
-  <ul class="findings">
-    {% for f in rec.decisive %}
-    <li>
-      {% if f.kind == "field" %}
-        <b>{{ f.value }} {{ f.unit }}</b> vs threshold {{ f.threshold }}
-        (<span class="{{ 'over' if f.margin >= 0 else 'under' }}">{{ '%+g'|format(f.margin) }}</span>),
-        {{ f.first_hour|t(tz, "%a %I:%M %p") }}&ndash;{{ (f.last_hour + HOUR)|t(tz, "%I:%M %p") }}
-      {% else %}
-        <b>NWS {{ f.alert_event }}</b> ({{ f.alert_certainty }}) in effect {{ f.first_hour|t(tz, "%a %I:%M %p") }}&ndash;{{ (f.last_hour + HOUR)|t(tz, "%I:%M %p") }}
+  <div class="count">{{ reasons|length }} reason{{ "s" if reasons|length != 1 }}{% if not reasons %}: nothing crossed a threshold{% endif %}</div>
+  {% for r in reasons %}
+  <details class="reason">
+    <summary><span class="r-title">{{ r.title }}</span>
+      <span class="r-when">{{ r.f.first_hour|t(tz, "%a %I %p") }}&ndash;{{ (r.f.last_hour + HOUR)|t(tz, "%I %p") }}</span></summary>
+    <div class="r-body">
+      <p>{{ r.sub }}.</p>
+      {% for e in r.quotes %}
+      <blockquote>&ldquo;{{ e.quote }}&rdquo;{% if e.note %}<div class="note">{{ e.note }}</div>{% endif %}</blockquote>
+      {% endfor %}
+      {% if r.quotes %}<p class="muted small">Quotes checked word for word against the alert text.</p>{% endif %}
+      {% if r.f.field == "gauge_stage_held_ft" and rec.flood_impact %}
+      <blockquote>NWS impact at {{ rec.flood_impact.stage_ft }} ft: &ldquo;{{ rec.flood_impact.statement }}&rdquo;</blockquote>
       {% endif %}
-      <div class="source">{{ inputs.sources[f.source_key].label }} &middot; fetched {{ inputs.sources[f.source_key].fetched_at|t(tz) }}
-        <details><summary>Threshold source</summary>{{ f.threshold_source }}</details></div>
-    </li>
-    {% else %}<li>No threshold crossed during commuting or working hours.</li>{% endfor %}
-  </ul>
-  {% if rec.flood_impact %}
-  <blockquote>NWS impact statement at {{ rec.flood_impact.stage_ft }} ft: &ldquo;{{ rec.flood_impact.statement }}&rdquo;</blockquote>
-  {% endif %}
+      <p class="source">Source: {{ r.source }}{% if r.issued %}, issued {{ r.issued|t(tz) }}{% endif %}, fetched {{ r.fetched|t(tz) }}</p>
+      <p class="source">Why this cutoff: {{ r.threshold_source }}</p>
+    </div>
+  </details>
+  {% endfor %}
 
-  <div class="hours" title="Hazard level by hour (0 none, 1 advisory, 2 warning)">
+  <div class="hours" title="Hazard level by hour">
     {% for h in rec.hourly_levels %}<div class="hour l{{ h.level }}"><span>{{ h.start|t(tz, "%I%p")|lower }}</span></div>{% endfor %}
   </div>
-  <p class="muted small">Confidence {{ rec.confidence }}: {{ rec.confidence_reasons|join(" ") }}</p>
+  <div class="legend"><span class="hour l0"></span>clear <span class="hour l1"></span>advisory <span class="hour l2"></span>warning</div>
+
+  {% if also %}
+  <details class="more"><summary>Also noted ({{ also|length }}), not deciding</summary>
+    {% for r in also %}<div class="also"><b>{{ r.title }}</b> &middot; {{ r.sub }}
+      {% for e in r.quotes %}<blockquote>&ldquo;{{ e.quote }}&rdquo;</blockquote>{% endfor %}</div>{% endfor %}
+  </details>
+  {% endif %}
+
+  {% set changes = rec.what_would_change|length + (report.what_ifs|selectattr("posture", "ne", rec.posture)|list|length if report else 0) %}
+  <details class="more"><summary>What would change it ({{ changes }})</summary>
+    <ul>
+      {% for c in rec.what_would_change %}<li>{{ c.what }} &rarr; <b>{{ POSTURE_NAMES[c.posture] }}</b></li>{% endfor %}
+      {% if report %}{% for w in report.what_ifs if w.posture != rec.posture %}<li>{{ w.change }} &rarr; <b>{{ POSTURE_NAMES[w.posture] }}</b></li>{% endfor %}{% endif %}
+      {% if not changes %}<li class="muted">Nothing within plausible forecast error.</li>{% endif %}
+    </ul>
+  </details>
+
+  {% if report %}
+  <details class="more"><summary>Full explanation (for email)</summary>
+    <p class="rationale">{{ report.rationale }}</p>
+    {% if not report.ran %}<p class="muted small">{{ report.reason }}</p>{% endif %}
+  </details>
+  {% if report.caveats %}
+  <details class="more"><summary>Caveats ({{ report.caveats|length }})</summary>
+    <ul>{% for c in report.caveats %}<li>{{ c }}</li>{% endfor %}</ul></details>
+  {% endif %}
+  {% if other_quotes %}
+  <details class="more"><summary>More from the alert text ({{ other_quotes|length }})</summary>
+    {% for e in other_quotes %}<blockquote><b>{{ e.alert_event }}:</b> &ldquo;{{ e.quote }}&rdquo;</blockquote>{% endfor %}
+  </details>
+  {% endif %}
+  {% endif %}
 </section>
 
-{% if report and report.evidence %}
-<section class="card">
-  <h2>From the NWS alert text</h2>
-  <p class="muted small">Each quote was checked word for word against the alert before it was recorded.</p>
-  {% for e in report.evidence %}
-  <blockquote><b>{{ e.alert_event }}:</b> &ldquo;{{ e.quote }}&rdquo;
-    {% if e.note %}<div class="note">{{ e.note }}</div>{% endif %}</blockquote>
-  {% endfor %}
-</section>
-{% endif %}
-
-<section class="card">
-  <h2>What would change it</h2>
-  <ul>
-    {% for c in rec.what_would_change %}<li>{{ c.what }} &rarr; <b>{{ c.detail }}</b></li>{% endfor %}
-    {% if report %}{% for w in report.what_ifs %}
-      {% if w.posture != rec.posture %}<li>{{ w.change }} &rarr; <b>{{ w.label }}</b> <span class="tag agent">agent tested</span></li>
-      {% else %}<li class="muted">{{ w.change }} &rarr; no change <span class="tag agent">agent tested</span></li>{% endif %}
-    {% endfor %}{% endif %}
-    {% if not rec.what_would_change and not (report and report.what_ifs) %}<li class="muted">Nothing within plausible forecast error.</li>{% endif %}
-  </ul>
-</section>
-
-<!-- Decide -->
+<!-- 3. Decide -->
 {% if manager_view %}
 <section class="card" id="decide">
   <h2>{{ "Change decision" if decision else "Decide" }}</h2>
   <form method="post" action="/e/{{ eid }}/decide">
     <input type="hidden" name="action" value="approve">
-    <button class="primary big">Approve: {{ rec.posture_label }}</button>
+    <button class="primary big">Approve: {{ short }}</button>
   </form>
   <details {{ 'open' if error }}>
     <summary>Override</summary>
@@ -116,40 +119,39 @@
 </section>
 {% endif %}
 
-<!-- Notify -->
+<!-- 4. Notify -->
 {% if decision %}
 <section class="card" id="notify">
   <h2>Notify employees</h2>
   {% if send %}
-    <p class="ok">Sent (simulated) by {{ send.actor }} at {{ send.at|t(tz) }}: {{ send.payload.messages|length }} messages.
+    <p class="ok">Sent (simulated): {{ send.payload.messages|length }} messages, {{ send.at|t(tz, "%a %I:%M %p") }}.
       <a href="/outbox?e={{ eid }}">Open outbox</a></p>
   {% endif %}
   {% if package %}
-    <p><b>{{ package.counts.notify }}</b> to notify, <b>{{ package.counts.skip }}</b> skipped,
-      {{ package.counts.personal_notes }} with personal notes. {{ "Text and email" if package.urgent else "Preferred channel" }}.
-      {% if package.send_by %}Send by {{ package.send_by|t(tz, "%a %I:%M %p") }}.{% endif %}</p>
-    <p class="muted small">Drafting: {{ package.drafting }}.</p>
+    <p class="headline">{{ package.counts.notify }} to notify &middot; {{ package.counts.skip }} skipped</p>
+    <p class="muted small">{{ "Text and email" if package.urgent else "Preferred channel" }}{% if package.send_by %} &middot; send by {{ package.send_by|t(tz, "%a %I:%M %p") }}{% endif %}</p>
     {% for g in package.groups %}
-    <div class="group">
-      <h3>{{ g.description }} <span class="tag">{{ g.count }}</span> <span class="tag {{ g.source }}">{{ g.source }}</span></h3>
-      <div class="sms">{{ g.sms }}</div>
-      <details><summary>Email: {{ g.email_subject }}</summary><pre class="email">{{ g.email_body }}</pre></details>
-      {% if g.problems %}<p class="muted small">Agent draft replaced: {{ g.problems|join("; ") }}</p>{% endif %}
-    </div>
+    <details class="reason">
+      <summary><span class="r-title">{{ g.description }}</span><span class="r-when">{{ g.count }} {{ "person" if g.count == 1 else "people" }}</span></summary>
+      <div class="r-body">
+        <div class="sms">{{ g.sms }}</div>
+        <details><summary>Email: {{ g.email_subject }}</summary><pre class="email">{{ g.email_body }}</pre></details>
+        <p class="muted small">{{ "Drafted by the agent, checked in code" if g.source == "agent" else "Code template" }}{% if g.problems %} (agent draft replaced: {{ g.problems|join("; ") }}){% endif %}</p>
+      </div>
+    </details>
     {% endfor %}
-    <details><summary>Who is notified and why ({{ package.counts.notify }})</summary>
+    <details class="more"><summary>Who is notified and why ({{ package.counts.notify }})</summary>
       <table class="people">
         {% for r in package.recipients if r.notify %}
-        <tr><td><b>{{ r.name }}</b><div class="muted small">{{ r.title }}, {{ r.agency }}</div></td>
-          <td>{{ r.group|replace("_", " ") }}<div class="muted small">{{ r.channels|join(" + ") }}</div></td>
+        <tr><td><b>{{ r.name }}</b><div class="muted small">{{ r.group|replace("_", " ") }} &middot; {{ r.channels|join(" + ") }}</div></td>
           <td class="small">{{ r.reasons|join(" ") }}{% for n in r.personal_notes %}<div class="note">{{ n }}</div>{% endfor %}</td></tr>
         {% endfor %}
       </table>
     </details>
-    <details><summary>Who is skipped and why ({{ package.counts.skip }})</summary>
+    <details class="more"><summary>Who is skipped and why ({{ package.counts.skip }})</summary>
       <table class="people">
         {% for r in package.recipients if not r.notify %}
-        <tr><td><b>{{ r.name }}</b><div class="muted small">{{ r.title }}</div></td><td class="small">{{ r.reasons|join(" ") }}</td></tr>
+        <tr><td><b>{{ r.name }}</b></td><td class="small">{{ r.reasons|join(" ") }}</td></tr>
         {% endfor %}
       </table>
     </details>
@@ -161,73 +163,66 @@
   {% elif "package" in busy %}
     <p class="working">Sorting the roster and drafting a message for each group&hellip;</p>
   {% elif manager_view %}
-    <form method="post" action="/e/{{ eid }}/package"><button class="primary">Draft notifications</button></form>
+    <form method="post" action="/e/{{ eid }}/package"><button class="primary big">Draft notifications</button></form>
   {% else %}
     <p class="muted">No notifications drafted.</p>
   {% endif %}
 </section>
 {% endif %}
 
-<!-- Q&A -->
+<!-- 5. Ask -->
 <section class="card" id="qa">
-  <h2>Ask about this recommendation</h2>
+  <h2>Ask about this</h2>
   {% for q in d.questions %}
-  <div class="qa"><div class="q">{{ q.payload.question }}</div><div class="a">{{ q.payload.answer }}</div>
-    <div class="muted small">{{ q.actor }} &middot; {{ q.at|t(tz) }}</div></div>
+  <details class="reason"><summary><span class="r-title">{{ q.payload.question }}</span></summary>
+    <div class="r-body"><p>{{ q.payload.answer }}</p><p class="muted small">{{ q.actor }} &middot; {{ q.at|t(tz) }}</p></div>
+  </details>
   {% endfor %}
   <form method="post" action="/e/{{ eid }}/ask" class="stack" onsubmit="this.querySelector('button').textContent='Thinking...'">
     <input name="question" placeholder="e.g. Does the snow total apply to us?" required>
     <button>Ask</button>
   </form>
-  <p class="muted small">Answers come only from the recorded inputs, and are recorded too.</p>
+  <p class="muted small">Answered only from the recorded inputs, and recorded too.</p>
 </section>
 
-<!-- Inputs and record -->
+<!-- 6. Evidence and record, closed by default -->
 <section class="card">
-  <h2>Inputs and sources</h2>
-  <table class="checks">
-    <tr><th>Check</th><th>Peak</th><th>Threshold</th><th></th></tr>
-    {% for c in rec.checks if c.peak is not none %}
-    <tr class="{{ 'crossed' if c.crossed }}"><td title="{{ c.threshold_source }}">{{ c.rule_id }}</td>
-      <td>{{ c.peak }} {{ c.unit }}</td><td>{{ c.threshold }}</td>
-      <td>{{ "crossed by" if c.crossed else "short by" }} {{ c.margin|abs }}</td></tr>
-    {% endfor %}
-  </table>
-  {% if rec.alerts_considered or rec.watches %}
-  <h3>NWS alerts at the facility</h3>
-  <ul>{% for a in rec.alerts_considered + rec.watches %}
-    <li>{{ a.event }} ({{ a.severity }}/{{ a.certainty }}), {{ a.starts|t(tz) }} to {{ a.ends|t(tz) if a.ends else "further notice" }}, issued {{ a.sent|t(tz) }}</li>
-  {% endfor %}</ul>
-  {% endif %}
-  {% if inputs.gauge %}
-  <h3>River gauge</h3>
-  <p>{{ inputs.gauge.name }} ({{ inputs.gauge.lid }}, {{ inputs.gauge.distance_mi }} mi): now {{ inputs.gauge.latest_stage_ft }} ft,
-    crest {{ inputs.gauge.crest_stage_ft }} ft. NWS flood stages: {% for k, v in inputs.gauge.stages_ft.items() %}{{ k }} {{ v }}{{ ", " if not loop.last }}{% endfor %}.
-    {% if inputs.gauge.usgs_stage_ft %}USGS cross-check {{ inputs.gauge.usgs_stage_ft }} ft.{% endif %}</p>
-  {% endif %}
-  <h3>Sources</h3>
-  <table class="sources">
-    {% for k, s in inputs.sources.items() %}
-    <tr><td>{{ s.label }}</td><td class="small">issued {{ s.issued|t(tz) if s.issued else "-" }}<br>fetched {{ s.fetched_at|t(tz) }}</td></tr>
-    {% endfor %}
-  </table>
-  <details><summary>Raw responses ({{ raw|length }}), each stored with its SHA-256</summary>
-    <ul class="small">{% for r in raw %}<li><a href="/raw/{{ r.id }}">{{ r.url[:80] }}</a> &middot; {{ r.sha256[:12] }}</li>{% endfor %}</ul>
+  <details class="more"><summary>All threshold checks ({{ rec.checks|selectattr("peak", "ne", none)|list|length }})</summary>
+    <table class="checks">
+      <tr><th>Check</th><th>Peak</th><th>Threshold</th><th></th></tr>
+      {% for c in rec.checks if c.peak is not none %}
+      <tr class="{{ 'crossed' if c.crossed }}"><td title="{{ c.threshold_source }}">{{ c.rule_id }}</td>
+        <td>{{ c.peak }} {{ c.unit }}</td><td>{{ c.threshold }}</td>
+        <td>{{ "over by" if c.crossed else "short by" }} {{ c.margin|abs }}</td></tr>
+      {% endfor %}
+    </table>
   </details>
-</section>
-
-<section class="card">
-  <h2>Decision record</h2>
-  <p class="small">Rules version <code>{{ rec.rules_version }}</code>.
-    {% if replay %}
-      Replay: <b class="{{ 'ok' if replay.matches else 'bad' }}">{{ "identical" if replay.matches else "differs: " ~ replay.differences|join(", ") }}</b>
-      (recorded {{ replay.recorded_posture }}, replayed {{ replay.replayed_posture }}).
-    {% else %}<a href="?replay=1">Replay the rules on the recorded inputs</a>{% endif %}</p>
-  <ol class="timeline">
-    {% for e in d.events %}
-    <li><b>{{ e.kind|replace("_", " ") }}</b> by {{ e.actor }} <span class="muted small">{{ e.at|t(tz) }}</span>
-      <div class="hash">#{{ e.seq }} {{ e.hash[:16] }} &larr; {{ e.prev_hash[:16] }}</div></li>
-    {% endfor %}
-  </ol>
+  {% if inputs.gauge %}
+  <details class="more"><summary>River gauge: {{ inputs.gauge.name }}</summary>
+    <p>{{ inputs.gauge.lid }}, {{ inputs.gauge.distance_mi }} mi away. Now {{ inputs.gauge.latest_stage_ft }} ft{% if inputs.gauge.crest_stage_ft %}, crest {{ inputs.gauge.crest_stage_ft }} ft{% endif %}.
+      NWS flood stages: {% for k, v in inputs.gauge.stages_ft.items() %}{{ k }} {{ v }}{{ ", " if not loop.last }}{% endfor %}.
+      {% if inputs.gauge.usgs_stage_ft %}USGS cross-check {{ inputs.gauge.usgs_stage_ft }} ft.{% endif %}</p>
+  </details>
+  {% endif %}
+  <details class="more"><summary>Sources ({{ inputs.sources|length }}) and raw data ({{ raw|length }})</summary>
+    <table class="sources">
+      {% for k, s in inputs.sources.items() %}
+      <tr><td>{{ s.label }}</td><td class="small">{% if s.issued %}issued {{ s.issued|t(tz) }}<br>{% endif %}fetched {{ s.fetched_at|t(tz) }}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="small muted">Raw responses, each stored with its SHA-256:</p>
+    <ul class="small">{% for r in raw %}<li><a href="/raw/{{ r.id }}">{{ r.url[:70] }}</a> &middot; {{ r.sha256[:12] }}</li>{% endfor %}</ul>
+  </details>
+  <details class="more" {{ 'open' if replay }}><summary>Decision record ({{ d.events|length }} entries)</summary>
+    <p class="small">Rules version <code>{{ rec.rules_version }}</code>.
+      {% if replay %}Replay: <b class="{{ 'ok' if replay.matches else 'bad' }}">{{ "identical" if replay.matches else "differs: " ~ replay.differences|join(", ") }}</b>.
+      {% else %}<a href="?replay=1">Replay the rules on the recorded inputs</a>{% endif %}</p>
+    <ol class="timeline">
+      {% for e in d.events %}
+      <li><b>{{ e.kind|replace("_", " ") }}</b> by {{ e.actor }} <span class="muted small">{{ e.at|t(tz) }}</span>
+        <div class="hash">#{{ e.seq }} {{ e.hash[:16] }} &larr; {{ e.prev_hash[:16] }}</div></li>
+      {% endfor %}
+    </ol>
+  </details>
 </section>
 {% endblock %}

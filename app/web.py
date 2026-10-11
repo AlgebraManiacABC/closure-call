@@ -61,6 +61,43 @@ templates.env.globals.update(POSTURE_NAMES=POSTURE_NAMES, HOUR=HOUR,
                              DID={"approve": "Approved", "override": "Overridden"})
 
 
+FIELD_TITLES = {"gust_mph": "Wind gusts of {v:g} mph", "sustained_mph": "Sustained wind of {v:g} mph",
+                "snow_storm_in": "{v:g} in of snow in 12 hours", "ice_storm_in": "{v:g} in of ice",
+                "wind_chill_f": "Wind chill of {v:g}°F", "gauge_stage_held_ft": "River at {v:g} ft"}
+LEVEL_NAMES = {"FLOOD-GAUGE-MAJOR": "major flood stage", "FLOOD-GAUGE-MODERATE": "moderate flood stage"}
+
+
+def short_posture(posture: str, delay_hours=None, dismissal=None, tz=None) -> str:
+    """The posture in a few words, for headlines; the full OPM wording is shown smaller."""
+    if posture == "delayed_arrival":
+        return f"Delayed arrival · {delay_hours} hours"
+    if posture == "early_dismissal":
+        if isinstance(dismissal, str) and len(dismissal) == 5:  # "HH:MM" as recorded on a decision
+            dismissal = datetime.strptime(dismissal, "%H:%M")
+            tz = None
+        return f"Early dismissal · {fmt_time(dismissal, tz, '%I:%M %p')}"
+    return {"normal": "Open", "unscheduled_leave": "Open · leave or telework allowed", "closure": "Closed"}[posture]
+
+
+def reason_rows(findings, inputs, evidence) -> list[dict]:
+    """One row per finding: a one-line title and when, with the details behind it."""
+    rows = []
+    for f in findings:
+        if f.kind == "alert":
+            row = {"title": f"NWS {f.alert_event}", "sub": f"NWS rates it {f.alert_certainty.lower()}",
+                   "quotes": [e for e in evidence if e.alert_id == f.alert_id], "alert_id": f.alert_id}
+        else:
+            level = LEVEL_NAMES.get(f.rule_id, "warning level" if f.level == 2 else "advisory level")
+            row = {"title": FIELD_TITLES.get(f.field, f.rule_id).format(v=f.value),
+                   "sub": f"{level} is {f.threshold:g} {f.unit.split()[0]}, so {abs(f.margin):g} "
+                          f"{'over' if f.margin >= 0 else 'under'}", "quotes": [], "alert_id": None}
+        src = inputs.sources[f.source_key]
+        row.update(f=f, source=src.label, fetched=src.fetched_at, issued=src.issued,
+                   threshold_source=f.threshold_source)
+        rows.append(row)
+    return rows
+
+
 def role(request: Request) -> str:
     return request.cookies.get("role", "manager")
 
@@ -132,7 +169,22 @@ def evaluation_page(eid: str, request: Request):
     package = next((p for p in reversed(d["packages"]) if decision and p["seq"] > decision["seq"]), None)
     send = next((s for s in reversed(d["sends"]) if package and s["seq"] > package["seq"]), None)
     replay = store.replay(eid) if request.query_params.get("replay") else None
-    return render(request, "evaluation.html", eid=eid, d=d, inputs=inputs, rec=rec, report=d["agent_report"],
+    report = d["agent_report"]
+    evidence = report.evidence if report else []
+    reasons = reason_rows(rec.decisive, inputs, evidence)
+    decisive_keys = {(f.rule_id, f.alert_id) for f in rec.decisive}
+    also = reason_rows([f for f in rec.findings if (f.rule_id, f.alert_id) not in decisive_keys], inputs, evidence)
+    shown_alerts = {r["alert_id"] for r in reasons + also}
+    other_quotes = [e for e in evidence if e.alert_id not in shown_alerts]
+    headline = (report.headline if report and report.headline else rec.timing_explanation)
+    decided = None
+    if decision:
+        p = decision["payload"]
+        decided = short_posture(p["posture"], p.get("delay_hours"), p.get("dismissal_time"), inputs.time_zone)
+    return render(request, "evaluation.html", eid=eid, d=d, inputs=inputs, rec=rec, report=report,
+                  reasons=reasons, also=also, other_quotes=other_quotes, headline=headline,
+                  short=short_posture(rec.posture, rec.delay_hours, rec.dismissal_time, inputs.time_zone),
+                  decided_short=decided,
                   decision=decision, package=package["payload"]["package"] if package else None, send=send,
                   busy=service.busy(eid), bg_error=service.last_error(eid), replay=replay, tz=inputs.time_zone,
                   manager=state.manager, raw=d["evaluation"]["payload"]["raw_fetches"])
