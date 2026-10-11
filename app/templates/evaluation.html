@@ -189,8 +189,20 @@
             {% endif %}
           {% endfor %}
         </select></label>
-      <label>Delay hours (delayed arrival) <input type="number" name="delay_hours" min="1" max="6"></label>
-      <label>Dismissal time (early dismissal) <input type="time" name="dismissal_time"></label>
+      <label data-for="delayed_arrival" hidden>Delay hours <input type="number" name="delay_hours" min="1" max="6" disabled></label>
+      <label data-for="early_dismissal" hidden>Dismissal time <input type="time" name="dismissal_time" disabled></label>
+      <script>
+        (function (form) {
+          var sel = form.querySelector('select[name="posture"]');
+          function sync() {
+            form.querySelectorAll('label[data-for]').forEach(function (l) {
+              var on = l.dataset.for === sel.value, inp = l.querySelector('input');
+              l.hidden = !on; inp.disabled = !on; inp.required = on;
+            });
+          }
+          sel.addEventListener('change', sync); sync();
+        })(document.currentScript.closest('form'));
+      </script>
       <label>Reason (required, goes in the record) <textarea name="reason" rows="3" required minlength="10"></textarea></label>
       <button>{{ "Record change" if decision else "Record override" }}</button>
     </form>
