@@ -54,7 +54,7 @@ Then open http://localhost:8000. `--db local` uses a SQLite file instead of the 
     python tests/test_agent_tools.py  (quote verification and what-ifs, 3)
     python tests/test_record.py       (decision record, triggers, tamper detection, 5)
     python tests/test_notify.py       (who is notified and what they are told, 7)
-    python tests/test_auth.py         (sign-in, roles, admin log, brief deliverables, 14)
+    python tests/test_auth.py         (sign-in, roles, admin log, deliverables, push, 15)
 
 None of them need the network or the model.
 
