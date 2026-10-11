@@ -116,6 +116,7 @@ details.reason > summary::after { content: "\203A"; font-size: 1.4rem; line-heig
 details.reason[open] > summary::after { transform: rotate(90deg); }
 details.reason[open] > summary { border-bottom: 1px solid var(--line); }
 .r-title { font-weight: 600; flex: 1; }
+.asked { display: block; font-weight: 400; font-size: .8rem; color: var(--muted); margin-top: 2px; }
 .r-when { font-size: .85rem; color: var(--muted); white-space: nowrap; }
 .r-body { padding: 4px 14px 10px; }
 .r-body p { margin: 8px 0; }

@@ -9,7 +9,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from .facility import Facility
 from .rules import AlertIn, GaugeIn, HourIn, Impact, Inputs, SourceRef
 from .sources import nws, water
-from .sources.http import Fetched, SourceError
+from .sources.http import Fetched, SourceError, get_json
 
 HOUR = timedelta(hours=1)
 GAUGE_MAX_MILES = 25
@@ -107,6 +107,13 @@ def collect(facility: Facility, day: date, now: datetime | None = None) -> tuple
     info, f = nws.point(lat, lon)
     fetched.append(f)
     sources["point"] = _ref(f, f"NWS point {lat:.4f},{lon:.4f}")
+    county = None
+    try:  # county name, so explanations never have to guess which county the facility is in
+        cf = get_json("nws", f"{nws.BASE}/zones/county/{info.county_zone}")
+        fetched.append(cf)
+        county = f"{cf.body['properties']['name']} County, {cf.body['properties'].get('state') or info.state}"
+    except (SourceError, KeyError) as e:
+        notes.append(f"County lookup unavailable: {e}")
 
     alerts, f = nws.alerts_for_point(lat, lon)
     fetched.append(f)
@@ -161,7 +168,7 @@ def collect(facility: Facility, day: date, now: datetime | None = None) -> tuple
 
     inputs = Inputs(
         facility_id=facility.id, facility_label=facility.display_name, lat=lat, lon=lon,
-        elevation_ft=round(elev_m * 3.28084) if elev_m is not None else None,
+        elevation_ft=round(elev_m * 3.28084) if elev_m is not None else None, county=county,
         time_zone=facility.pin.time_zone, day=day, evaluated_at=now, open=facility.open, close=facility.close,
         morning_commute=facility.morning_commute, evening_commute=facility.evening_commute,
         decide_by=facility.delay_or_closure_by, hours=hours, alerts=alert_ins, gauge=gauge,

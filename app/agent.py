@@ -110,8 +110,9 @@ def context_text(inputs: Inputs, rec: Recommendation) -> str:
     """Compact briefing of the recorded inputs and the engine's result, kept to a few hundred tokens."""
     tz_now = inputs.evaluated_at
     lines = [
-        f"Facility: {inputs.facility_label} (lat {inputs.lat}, lon {inputs.lon}, elevation "
-        f"{inputs.elevation_ft:,.0f} ft)" if inputs.elevation_ft else f"Facility: {inputs.facility_label}",
+        f"Facility: {inputs.facility_label}" + (f", in {inputs.county}" if inputs.county else "")
+        + f" (lat {inputs.lat}, lon {inputs.lon}"
+        + (f", elevation {inputs.elevation_ft:,.0f} ft)" if inputs.elevation_ft else ")"),
         f"Decision day: {inputs.day:%A %b %d}. Hours {inputs.open:%H:%M}-{inputs.close:%H:%M}, morning commute "
         f"{inputs.morning_commute[0]:%H:%M}-{inputs.morning_commute[1]:%H:%M}, evening commute "
         f"{inputs.evening_commute[0]:%H:%M}-{inputs.evening_commute[1]:%H:%M}. Evaluated {tz_now:%a %H:%M %Z}.",
@@ -138,7 +139,8 @@ def context_text(inputs: Inputs, rec: Recommendation) -> str:
                   f"({'crossed' if c.crossed else 'short'} by {abs(c.margin)})" for c in near]
     refs = {v: k for k, v in _alert_refs(inputs).items()}
     if refs:
-        lines.append("NWS alerts at the facility location (read the text with read_alert):")
+        lines.append("NWS alerts that NWS returned for the facility's exact coordinates, so the facility IS inside "
+                     "each one's area (read the text with read_alert):")
         for a in inputs.alerts:
             if a.id in refs:
                 lines.append(f"  - {refs[a.id]}: {a.event} ({a.severity}/{a.certainty}), in effect "
@@ -176,6 +178,8 @@ Rules:
   findings and timing as given.
 - Never assume the facility lies inside a named valley, county or zone unless the record says so.
   If an alert names places, say whether the facility's town is among them; if unclear, say it is unclear.
+- Every alert listed in the briefing was returned for the facility's own coordinates: the facility is
+  inside that alert's area. Never say it is outside a listed alert. Use only the county the briefing names.
 - Keep tool use short: read each alert once, at most 2 lookups, at most 3 what_if calls.
 
 The headline is ONE plain sentence of at most 20 words that a busy manager reads first, e.g.
@@ -398,6 +402,9 @@ Answer ONLY from the recorded briefing below and your tools, which read the same
 Name the source and time for any figure you give (for example "NWS forecast issued 14:09").
 If the record does not contain the answer, say so plainly and suggest what to check.
 Never assume the facility lies inside a named valley, county or zone unless the record says so.
+Every alert listed was returned for the facility's own coordinates, so the facility is inside its area;
+never say otherwise. Use only the county the record names; if none is named, do not name one.
+Name alerts in plain words ("the NWS Flood Warning"), never by ids like A1. Write times like 7:50 PM.
 Never change the recommended posture. Answer in at most 120 words."""
 
 

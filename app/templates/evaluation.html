@@ -174,8 +174,10 @@
 <section class="card" id="qa">
   <h2>Ask about this</h2>
   {% for q in d.questions %}
-  <details class="reason"><summary><span class="r-title">{{ q.payload.question }}</span></summary>
-    <div class="r-body"><p>{{ q.payload.answer }}</p><p class="muted small">{{ q.actor }} &middot; {{ q.at|t(tz) }}</p></div>
+  <details class="reason" {{ 'open' if loop.last }}>
+    <summary><span class="r-title">{{ q.payload.question }}
+      <span class="asked">Asked by {{ q.actor }} &middot; {{ q.at|t(tz, "%a %I:%M %p") }}</span></span></summary>
+    <div class="r-body"><p>{{ q.payload.answer }}</p></div>
   </details>
   {% endfor %}
   <form method="post" action="/e/{{ eid }}/ask" class="stack" onsubmit="this.querySelector('button').textContent='Thinking...'">

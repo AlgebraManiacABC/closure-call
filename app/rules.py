@@ -99,6 +99,7 @@ class Inputs(BaseModel):
     lat: float
     lon: float
     elevation_ft: float | None = None  # gridpoint elevation; lets the agent judge "above 6000 feet" wording
+    county: str | None = None  # e.g. "Clinton County, IA"; context for the agent, not used by rules
     time_zone: str
     day: date
     evaluated_at: datetime  # the "now" the evaluation is for; part of the inputs so re-runs match
