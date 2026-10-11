@@ -28,10 +28,30 @@
     <div><div class="small muted">Scheduled telework days</div>
       <div class="checkrow">{% for w in WEEKDAYS[:5] %}<label><input type="checkbox" name="telework_days" value="{{ w }}" {{ "checked" if e.telework_days and w in e.telework_days }}> {{ w }}</label>{% endfor %}</div></div>
     <label>Notes <input name="notes" value="{{ e.notes or '' }}"></label>
-    <details class="more"><summary>Leave, detail and accessibility (JSON)</summary>
-      <p class="muted small">planned_leave: a list of {"start", "end"} dates. detail: null, or {"location", "start", "end"}.
-        accessibility_needs: a list of {"type", "note"}, where type is, for example, mobility, vision, hearing or medical.</p>
-      <textarea name="advanced" rows="10" spellcheck="false">{{ advanced }}</textarea>
+    <details class="more" {{ "open" if e.planned_leave }}><summary>Planned leave ({{ (e.planned_leave or [])|length }})</summary>
+      <p class="muted small">People on approved leave that day are not sent notices. Clear both dates to remove a period.</p>
+      {% for p in (e.planned_leave or []) + [{}, {}] %}
+      <div class="pair">
+        <label>From <input type="date" name="leave_start" value="{{ p.start or '' }}"></label>
+        <label>Through <input type="date" name="leave_end" value="{{ p.end or '' }}"></label>
+      </div>
+      {% endfor %}
+    </details>
+    <details class="more" {{ "open" if e.detail }}><summary>On detail{% if e.detail %}: {{ e.detail.location }}{% endif %}</summary>
+      {% if e.detail and e.detail.location == facility_id %}<p class="muted small">Detailed here from another office.</p>{% endif %}
+      <p class="muted small">While on detail elsewhere, that office's status applies to them, so they are not sent notices. Leave the office blank if they are not on detail.</p>
+      <label>Office <input name="detail_location" value="{{ e.detail.location if e.detail else '' }}" placeholder="e.g. FSA State Office, Des Moines"></label>
+      <div class="pair">
+        <label>From <input type="date" name="detail_start" value="{{ e.detail.start if e.detail else '' }}"></label>
+        <label>Through <input type="date" name="detail_end" value="{{ e.detail.end if e.detail else '' }}"></label>
+      </div>
+    </details>
+    <details class="more" {{ "open" if needs }}><summary>Accessibility needs ({{ needs|length }})</summary>
+      <p class="muted small">Adds a personal note to their notices, or limits them to text and email.</p>
+      {% for k, label in ACCESSIBILITY.items() %}
+      <label class="check"><input type="checkbox" name="access_{{ k }}" {{ "checked" if k in needs }}> {{ label }}</label>
+      <label>Note (optional) <input name="access_{{ k }}_note" value="{{ needs.get(k, '') }}"></label>
+      {% endfor %}
     </details>
     {% if can_edit %}<button class="primary">{{ "Add employee" if emp_id == "new" else "Save" }}</button>{% endif %}
     </fieldset>

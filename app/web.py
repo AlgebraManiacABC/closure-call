@@ -25,7 +25,7 @@ from .record import RecordError, get_store
 from .facility import WEEKDAYS, facility_data, roster_data
 from .facility import load_facility as load_facility_config
 from .facility import load_roster as load_roster_config
-from .organization import Organization, OrgError
+from .organization import ACCESSIBILITY, Organization, OrgError
 from .rules import HOUR, load_thresholds
 from .sources import geocode
 from .sources.http import SourceError
@@ -635,7 +635,7 @@ def org_editors_only(request: Request) -> RedirectResponse | None:
 
 
 def _form_dict(form) -> dict:
-    multi = ("operating_days", "telework_days")
+    multi = ("operating_days", "telework_days", "leave_start", "leave_end")
     return {k: (form.getlist(k) if k in multi else form.get(k)) for k in form.keys()}
 
 
@@ -671,9 +671,9 @@ def employee_page(emp_id: str, request: Request):
     if e is None and emp_id != "new":
         return back("/organization#roster", "No such employee")
     u = me(request)
-    advanced = json.dumps({k: (e or {}).get(k, [] if k != "detail" else None)
-                           for k in ("detail", "planned_leave", "accessibility_needs")}, indent=2)
-    return render(request, "employee.html", e=e or {}, emp_id=emp_id, advanced=advanced, WEEKDAYS=WEEKDAYS,
+    needs = {a["type"]: a.get("note", "") for a in (e or {}).get("accessibility_needs", [])}
+    return render(request, "employee.html", e=e or {}, emp_id=emp_id, needs=needs, ACCESSIBILITY=ACCESSIBILITY,
+                  facility_id=facility_data()["id"], WEEKDAYS=WEEKDAYS,
                   is_manager_person=emp_id == facility_data()["manager_employee_id"],
                   can_edit=u.is_manager or u.is_sysadmin)
 

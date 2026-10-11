@@ -59,8 +59,18 @@ def test_manager_adds_and_edits_an_employee_and_it_is_logged():
     assert "error" not in r.headers["location"], r.headers["location"]
     pat = next(e for e in fac.load_roster() if e.name == "Pat Rivera")
     assert len(fac.load_roster()) == n + 1 and pat.telework_days == ["Mon", "Fri"] and pat.preferred_channel == "email"
-    c.post(f"/organization/employee/{pat.id}", data=employee_form(essential="on"))
-    assert next(e for e in fac.load_roster() if e.id == pat.id).essential
+    c.post(f"/organization/employee/{pat.id}", data=employee_form(
+        essential="on", leave_start=["2026-10-13", ""], leave_end=["2026-10-14", ""],
+        detail_location="FSA State Office, Des Moines", detail_start="2026-11-02", detail_end="2026-11-20",
+        access_hearing="on", access_hearing_note="Text only"))
+    pat = next(e for e in fac.load_roster() if e.id == pat.id)
+    assert pat.essential and [(r.start.isoformat(), r.end.isoformat()) for r in pat.planned_leave] == [("2026-10-13", "2026-10-14")]
+    assert pat.detail.location.startswith("FSA") and pat.accessibility_needs == [{"type": "hearing", "note": "Text only"}]
+    page = c.get(f"/organization/employee/{pat.id}").text
+    assert 'value="2026-10-13"' in page and "Text only" in page
+    c.post(f"/organization/employee/{pat.id}", data=employee_form())  # clearing the fields clears them
+    pat = next(e for e in fac.load_roster() if e.id == pat.id)
+    assert not pat.planned_leave and pat.detail is None and not pat.accessibility_needs
     assert any(e for e in state.roster if e.id == pat.id)
     actions = [e["action"] for e in store.audit.entries(20)]
     assert "employee_added" in actions and "employee_changed" in actions
@@ -70,7 +80,8 @@ def test_bad_input_is_refused_and_nothing_changes():
     c = client("mgr")
     before = fac.roster_data()
     for bad in (employee_form(email="not-an-email"), employee_form(shift_start="soon"),
-                employee_form(advanced='{"planned_leave": [{"start": "nope"}]}')):
+                employee_form(leave_start=["2026-10-20"], leave_end=["2026-10-19"]),
+                employee_form(detail_location="Des Moines", detail_start="")):
         r = c.post("/organization/employee/new", data=bad)
         assert "error=" in r.headers["location"], bad
     assert fac.roster_data() == before

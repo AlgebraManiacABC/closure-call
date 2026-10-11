@@ -23,6 +23,11 @@ org_config = sa.Table(
     sa.Column("updated_at", sa.String(40), nullable=False),
 )
 WEEKDAYS = fac.WEEKDAYS
+# The needs the notices act on (notify.personal_notes and the hearing-only channel rule).
+ACCESSIBILITY = {"mobility": "Mobility (snow or ice on the lot and ramp is a barrier)",
+                 "vision": "Vision (relies on a ride in darkness or bad weather)",
+                 "hearing": "Deaf or hard of hearing (text and email only, no voice calls)",
+                 "medical": "Medical condition worsened by extreme cold"}
 
 
 class OrgError(ValueError):
@@ -127,15 +132,26 @@ class Organization:
                         "preferred": "email" if form.get("preferred") == "email" else "sms"},
             "notes": form.get("notes", "").strip(),
         })
-        adv = form.get("advanced", "").strip()
-        if adv:
-            try:
-                extra = json.loads(adv)
-            except json.JSONDecodeError as ex:
-                raise OrgError(f"Leave, detail and accessibility must be valid JSON ({ex.msg})")
-            for k in ("detail", "planned_leave", "accessibility_needs"):
-                if k in extra:
-                    e[k] = extra[k]
+        leave = []
+        for s, t in zip(form.get("leave_start", []), form.get("leave_end", [])):
+            if s or t:
+                s, t = _date(s or t, "Leave start"), _date(t or s, "Leave end")
+                if t < s:
+                    raise OrgError("A leave period ends before it starts")
+                leave.append({"start": s, "end": t})
+        e["planned_leave"] = sorted(leave, key=lambda x: x["start"])
+        where = form.get("detail_location", "").strip()
+        if where:
+            s, t = _date(form.get("detail_start", ""), "Detail start"), _date(form.get("detail_end", ""), "Detail end")
+            if t < s:
+                raise OrgError("The detail ends before it starts")
+            e["detail"] = {"location": where, "start": s, "end": t}
+        else:
+            e["detail"] = None
+        known = [a for a in e.get("accessibility_needs", []) if a.get("type") not in ACCESSIBILITY]
+        e["accessibility_needs"] = known + [
+            {"type": k, "note": form.get(f"access_{k}_note", "").strip()}
+            for k in ACCESSIBILITY if f"access_{k}" in form]
         _check(lambda: fac.roster_from_dict(r))
         changed = sorted(k for k in e if e.get(k) != before.get(k))
         self._save("roster", r, actor, action, f"{emp_id} {name}", {"changed": changed})
@@ -158,6 +174,13 @@ def _hm(form: dict, key: str) -> str:
         return time.fromisoformat(v).strftime("%H:%M")
     except ValueError:
         raise OrgError(f"'{key.replace('_', ' ')}' needs a time")
+
+
+def _date(v: str, what: str) -> str:
+    try:
+        return date.fromisoformat((v or "").strip()).isoformat()
+    except ValueError:
+        raise OrgError(f"{what} needs a date")
 
 
 def _int(form: dict, key: str) -> int:

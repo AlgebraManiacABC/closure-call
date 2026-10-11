@@ -388,8 +388,8 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
 - Always use the Write/Edit tools for files and patch scripts, not bash heredocs.
 - Staff and facility editing (Oct 11, `app/organization.py`, page /organization, nav "Staff"): managers and
   sysadmins edit the facility profile (name, agencies, facility manager, hours, operating days, commute
-  windows, decide-by time, holidays) and the roster (add, edit, remove; leave, detail and accessibility as
-  JSON). Reviewers read only. Saved copies live in the `org_config` table (own metadata, so erasing keeps
+  windows, decide-by time, holidays) and the roster (add, edit, remove; leave as date pairs, detail as office and
+  dates, accessibility as checkboxes with notes; no JSON for managers). Reviewers read only. Saved copies live in the `org_config` table (own metadata, so erasing keeps
   them) and override data/*.json through `facility.set_override`; `load_facility()`/`load_roster()` callers
   are unchanged. Each save is parsed as the app loads it before being kept, and goes in the admin log
   (employee_added/changed/removed, facility_changed). The facility manager cannot be removed. The location
