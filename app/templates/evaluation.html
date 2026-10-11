@@ -147,23 +147,41 @@
 <!-- 3. Decide -->
 {% if manager_view %}
 <section class="card" id="decide">
-  <h2>{{ "Change decision" if decision else "Decide" }}</h2>
+  {% if not decision %}
+  <h2>Decide</h2>
   <form method="post" action="/e/{{ eid }}/decide">
     <input type="hidden" name="action" value="approve">
     <button class="primary big">Approve: {{ short }}</button>
   </form>
   <details {{ 'open' if error }}>
     <summary>Override</summary>
+  {% else %}
+  {# Already decided: offer only what would be different. Delay and dismissal stay listed because their hours or time can change. #}
+  {% set current = decision.payload.posture %}
+  <details {{ 'open' if error }}>
+    <summary>Change the decision?</summary>
+    {% if current != rec.posture %}
+    <form method="post" action="/e/{{ eid }}/decide">
+      <input type="hidden" name="action" value="approve">
+      <button class="primary">Go back to the recommendation: {{ short }}</button>
+    </form>
+    <p class="muted small">Or choose a different status:</p>
+    {% endif %}
+  {% endif %}
     <form method="post" action="/e/{{ eid }}/decide" class="stack">
       <input type="hidden" name="action" value="override">
-      <label>Posture
+      <label>{{ "Change to" if decision else "Posture" }}
         <select name="posture">
-          {% for k, v in POSTURE_NAMES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+          {% for k, v in POSTURE_NAMES.items() %}
+            {% if not decision or (k != rec.posture and (k != decision.payload.posture or k in ("delayed_arrival", "early_dismissal"))) %}
+            <option value="{{ k }}">{{ v }}</option>
+            {% endif %}
+          {% endfor %}
         </select></label>
       <label>Delay hours (delayed arrival) <input type="number" name="delay_hours" min="1" max="6"></label>
       <label>Dismissal time (early dismissal) <input type="time" name="dismissal_time"></label>
       <label>Reason (required, goes in the record) <textarea name="reason" rows="3" required minlength="10"></textarea></label>
-      <button>Record override</button>
+      <button>{{ "Record change" if decision else "Record override" }}</button>
     </form>
   </details>
 </section>
