@@ -187,6 +187,9 @@
     </div>
     <h3>Notices</h3>
     {% endif %}
+    {% if package.counts.notify == 0 %}
+    <p class="muted">No employee notices are needed for this decision: the office keeps its normal schedule.</p>
+    {% else %}
     <p class="headline">{{ package.counts.notify }} to notify &middot; {{ package.counts.skip }} skipped</p>
     <p class="muted small">{{ "Text and email" if package.urgent else "Preferred channel" }}{% if package.send_by %} &middot; send by {{ package.send_by|t(tz, "%a %I:%M %p") }}{% endif %}</p>
     {% for g in package.groups %}
@@ -219,11 +222,17 @@
       <button class="primary big">Approve and send to {{ package.counts.notify }} people</button>
     </form>
     {% endif %}
+    {% endif %}
   {% elif "package" in busy %}
     <p class="working">Sorting the roster; AI is writing the decision summary and a message for each group&hellip;</p>
   {% elif manager_view %}
+    {% if decision.payload.posture == "normal" %}
+    <form method="post" action="/e/{{ eid }}/package"><button class="primary big">Write decision summary</button></form>
+    <p class="muted small">Uses AI once to summarize your decision for email. No employee notices are needed when the office keeps its normal schedule.</p>
+    {% else %}
     <form method="post" action="/e/{{ eid }}/package"><button class="primary big">Write summary and draft notices</button></form>
     <p class="muted small">Uses AI once: a summary of your decision for email, and a notice for each employee group.</p>
+    {% endif %}
   {% else %}
     <p class="muted">No notifications drafted.</p>
   {% endif %}

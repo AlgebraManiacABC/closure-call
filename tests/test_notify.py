@@ -87,6 +87,30 @@ def test_decision_summary_states_the_override_and_reason():
     assert f"Notices go to {pkg.counts['notify']} employees" in pkg.summary
 
 
+def test_open_decision_still_asks_ai_for_a_summary_and_states_no_invented_cause():
+    from unittest import mock
+    import app.notify as notify
+    inputs = make()
+    rec = evaluate(inputs)
+    d = Decided(posture="normal", label="Open", action="approve", decided_by="Luke Dunn (@luke, manager)",
+                recommended_label="Open")
+    calls = []
+
+    class FakeAgent:
+        def __init__(self, **kw):
+            pass
+
+        def __call__(self, task, structured_output_model=None):
+            calls.append(task)
+            raise RuntimeError("model offline in this test")
+
+    with mock.patch.object(notify, "Agent", FakeAgent), mock.patch.object(notify, "make_model", lambda **kw: None):
+        pkg = notify.build_package(FAC, ROSTER, inputs, rec, d, use_agent=True)
+    assert calls and "no employee groups need a notice" in calls[0]  # the AI is asked even with no groups
+    assert pkg.counts["notify"] == 0 and pkg.summary_source == "template"
+    assert "No weather threshold was crossed" in pkg.summary and "severe weather" not in pkg.summary
+
+
 def test_draft_checks_catch_missing_facts():
     d = Decided(posture="delayed_arrival", label="x", delay_hours=2)
     day = date(2026, 10, 13)

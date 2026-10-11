@@ -133,7 +133,7 @@ def reason_phrase(inputs: Inputs, rec: Recommendation) -> str:
             return f"flooding on the {inputs.gauge.name}"
         return {"wind": "high winds", "winter": "snow and ice", "flood": "flooding",
                 "tropical": "a tropical storm"}.get(f.hazard, "severe weather")
-    return "severe weather"
+    return ""  # nothing crossed a threshold; callers decide how to say so
 
 
 def group_of(s: DayStatus) -> str:
@@ -324,7 +324,7 @@ def summary_template(d: Decided, facility_label: str, day: date, why: str, timin
              f"{d.label} for {day:%A, %B %d}. Reason given: \"{d.reason}\" ")
     else:
         s = f"{who} approved the recommended status for {facility_label} on {day:%A, %B %d}: {d.label}. "
-    s += f"Cause: {why}. {timing} "
+    s += (f"Cause: {why}. " if why else "No weather threshold was crossed. ") + f"{timing} "
     return s + (f"Notices go to {counts['notify']} employees; {counts['skip']} are not notified "
                 "(on detail elsewhere, on leave, or not affected).")
 
@@ -336,9 +336,11 @@ def draft_groups(needed: dict[str, str], d: Decided, facility_label: str, day: d
     agent_drafts: dict[str, GroupDraft] = {}
     summary = ""
     status = "template (agent not used)"
-    if needed:
-        brief = "\n".join(f"- group {g} ({GROUP_DESCRIPTIONS[g]}): {facts}" for g, facts in needed.items())
-        task = (f"Facility: {facility_label}. Day: {day:%A %B %d}. Status: {d.label}. Cause: {why}.\n{context}\n"
+    if True:  # the summary is always requested, even when no employee group needs a notice
+        brief = "\n".join(f"- group {g} ({GROUP_DESCRIPTIONS[g]}): {facts}" for g, facts in needed.items()) or \
+            "(no employee groups need a notice for this decision: write only decision_summary and return no groups)"
+        task = (f"Facility: {facility_label}. Day: {day:%A %B %d}. Status: {d.label}. "
+                f"Cause: {why or 'no weather threshold was crossed'}.\n{context}\n"
                 f"Contact named at the end of the employee notices only (not the decider): {manager.name}, "
                 f"{manager.phone}.\n"
                 f"Groups and the facts each must be told:\n{brief}")
@@ -374,6 +376,8 @@ def build_package(facility: Facility, roster: list[Employee], inputs: Inputs, re
     recipients = build_recipients(facility, roster, inputs.day, d, rec)
     manager = next(e for e in roster if e.id == facility.manager_employee_id)
     why = reason_phrase(inputs, rec)
+    if not why and d.posture != "normal":
+        why = f"the facility manager's judgment ({d.reason.rstrip('.')})" if d.reason else "local conditions"
     groups_needed = {}
     for r in recipients:
         if r.notify and r.group not in groups_needed:
