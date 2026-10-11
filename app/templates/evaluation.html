@@ -253,8 +253,10 @@
     <details class="reason">
       <summary><span class="r-title">{{ g.description }}</span><span class="r-when">{{ g.count }} {{ "person" if g.count == 1 else "people" }}</span></summary>
       <div class="r-body">
+        {# Same facts, two channels: the short text goes out by SMS, the longer version by email. #}
+        <p class="small"><b>Text message</b> <span class="muted">({{ g.sms|length }} characters)</span></p>
         <div class="sms">{{ g.sms }}</div>
-        <details><summary>Email: {{ g.email_subject }}</summary><pre class="email">{{ g.email_body }}</pre></details>
+        <details><summary><b>Email</b>, subject &ldquo;{{ g.email_subject }}&rdquo;</summary><pre class="email">{{ g.email_body }}</pre></details>
         <p class="muted small">{{ "Drafted by the agent, checked in code" if g.source == "agent" else "Code template" }}{% if g.problems %} (agent draft replaced: {{ g.problems|join("; ") }}){% endif %}</p>
       </div>
     </details>
