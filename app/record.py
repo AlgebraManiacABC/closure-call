@@ -373,6 +373,39 @@ class Store:
             raise RecordError(f"no raw fetch {fetch_id}")
         return json.loads(gzip.decompress(r.body_gz))
 
+    # ---------- erasing (sysadmin only) ----------
+
+    def counts(self) -> dict:
+        with self.engine.connect() as c:
+            kinds = dict(c.execute(sa.select(ledger.c.kind, sa.func.count()).group_by(ledger.c.kind)).all())
+            raws = c.execute(sa.select(sa.func.count()).select_from(raw_fetches)).scalar()
+            head = c.execute(sa.select(ledger.c.hash).order_by(ledger.c.seq.desc()).limit(1)).scalar()
+        return {"entries": sum(kinds.values()), "by_kind": kinds, "raw_responses": raws, "head": head or GENESIS}
+
+    def erase_all(self, erased_by: str, reason: str) -> EntryRef:
+        """Drops and recreates the record (the triggers block DELETE and TRUNCATE, not DROP), then starts
+        the new chain with a `record_erased` entry saying who erased what, when and why, and the hash of
+        the old chain's last entry. History can be wiped, but never silently. Accounts are kept."""
+        if len(reason.strip()) < 10:
+            raise RecordError("give a reason of at least 10 characters")
+        before = self.counts()
+        with self._lock:
+            with self.engine.begin() as c:
+                meta.drop_all(c)
+                if self.dialect == "postgresql":
+                    c.exec_driver_sql("DROP FUNCTION IF EXISTS closure_call_append_only()")
+            meta.create_all(self.engine)
+            self._install_triggers()
+            return self._append("record_erased", "all",
+                                {"reason": reason.strip(), "previous_entries": before["entries"],
+                                 "previous_by_kind": before["by_kind"], "previous_raw_responses": before["raw_responses"],
+                                 "previous_head": before["head"]}, erased_by)
+
+    def erasures(self) -> list[dict]:
+        with self.engine.connect() as c:
+            rows = c.execute(sa.select(ledger).where(ledger.c.kind == "record_erased").order_by(ledger.c.seq)).all()
+        return [self._row(r) for r in rows]
+
     # ---------- verification ----------
 
     def verify_chain(self) -> dict:

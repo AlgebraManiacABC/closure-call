@@ -153,8 +153,12 @@ def back(url: str, error: str | None = None) -> RedirectResponse:
 
 
 def managers_only(request: Request, url: str) -> RedirectResponse | None:
-    """Reviewers can read and ask, but not act."""
+    """Reviewers and sysadmins can read and ask, but only managers act on decisions."""
     return None if me(request).is_manager else back(url, "Only a facility manager account can do that")
+
+
+def sysadmins_only(request: Request) -> RedirectResponse | None:
+    return None if me(request).is_sysadmin else back("/", "Only a sysadmin account can do that")
 
 
 # ---------- sign-in ----------
@@ -215,7 +219,96 @@ def logout():
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return back("/manager" if me(request).is_manager else "/history")
+    u = me(request)
+    return back("/manager" if u.is_manager else "/admin" if u.is_sysadmin else "/history")
+
+
+# ---------- my account ----------
+
+@app.get("/account", response_class=HTMLResponse)
+def account_page(request: Request):
+    return render(request, "account.html", ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS)
+
+
+@app.post("/account/password")
+def change_my_password(request: Request, current: str = Form(...), new: str = Form(...), repeat: str = Form(...)):
+    u = me(request)
+    if accounts.authenticate(u.username, current) is None:
+        return back("/account", "Current password is wrong")
+    if new != repeat:
+        return back("/account", "The new passwords do not match")
+    try:
+        accounts.set_password(u.username, new)
+    except auth.AuthError as e:
+        return back("/account", str(e))
+    # The password fingerprint changed, so issue a fresh session for this browser.
+    resp = back("/account?done=1")
+    resp.set_cookie(auth.SESSION_COOKIE, auth.make_session(accounts.get(u.username)),
+                    max_age=auth.SESSION_DAYS * 86400, httponly=True, samesite="lax",
+                    secure=request.url.scheme == "https")
+    return resp
+
+
+# ---------- sysadmin ----------
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(request: Request):
+    if (denied := sysadmins_only(request)):
+        return denied
+    return render(request, "admin.html", users=accounts.list(), counts=store.counts(), erasures=store.erasures(),
+                  ROLES=auth.ROLES, ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS)
+
+
+@app.post("/admin/users")
+def admin_add_user(request: Request, username: str = Form(...), display_name: str = Form(...),
+                   role_name: str = Form(...), password: str = Form(...)):
+    if (denied := sysadmins_only(request)):
+        return denied
+    try:
+        accounts.add(username, display_name, role_name, password)
+    except auth.AuthError as e:
+        return back("/admin#accounts", str(e))
+    return back("/admin#accounts")
+
+
+@app.post("/admin/users/{username}/disabled")
+def admin_set_disabled(username: str, request: Request, disabled: str = Form(...)):
+    if (denied := sysadmins_only(request)):
+        return denied
+    if username == me(request).username:
+        return back("/admin#accounts", "You cannot disable your own account")
+    try:
+        accounts.set_disabled(username, disabled == "1")
+    except auth.AuthError as e:
+        return back("/admin#accounts", str(e))
+    return back("/admin#accounts")
+
+
+@app.post("/admin/users/{username}/password")
+def admin_reset_password(username: str, request: Request, password: str = Form(...)):
+    if (denied := sysadmins_only(request)):
+        return denied
+    try:
+        accounts.set_password(username, password)
+    except auth.AuthError as e:
+        return back("/admin#accounts", str(e))
+    return back("/admin#accounts")
+
+
+@app.post("/admin/erase")
+def admin_erase(request: Request, confirm: str = Form(...), reason: str = Form(...), password: str = Form(...)):
+    if (denied := sysadmins_only(request)):
+        return denied
+    u = me(request)
+    if confirm.strip() != "ERASE":
+        return back("/admin#erase", "Type ERASE to confirm")
+    if accounts.authenticate(u.username, password) is None:
+        return back("/admin#erase", "Your password is wrong; nothing was erased")
+    try:
+        store.erase_all(u.actor, reason)
+    except RecordError as e:
+        return back("/admin#erase", str(e))
+    return back("/history")
 
 
 def pending_alerts(facility_id: str, limit: int = 3) -> list[dict]:
@@ -365,7 +458,7 @@ def decide(eid: str, request: Request, action: str = Form(...), posture: str = F
                               posture or None, int(delay_hours) if delay_hours else None, dismissal_time or None)
     except (RecordError, ValueError) as e:
         return back(f"/e/{eid}#decide", str(e))
-    return back(f"/e/{eid}#notify")
+    return back(f"/e/{eid}")  # top of the page, where the decision banner now shows
 
 
 @app.post("/e/{eid}/package")
@@ -402,7 +495,7 @@ def outbox_page(request: Request, e: str | None = None):
 def history_page(request: Request):
     verify = store.verify_chain() if request.query_params.get("verify") else None
     return render(request, "history.html", rows=store.history(limit=100), verify=verify,
-                  tz=state.facility.pin.time_zone)
+                  erasures=store.erasures(), tz=state.facility.pin.time_zone)
 
 
 @app.get("/raw/{fetch_id}")

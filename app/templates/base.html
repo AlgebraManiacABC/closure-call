@@ -15,9 +15,10 @@
     {% if role == "manager" %}<a href="/manager">Decide</a>{% endif %}
     <a href="/outbox">Outbox</a>
     <a href="/history">History</a>
+    {% if role == "sysadmin" %}<a href="/admin">Admin</a>{% endif %}
   </nav>
   <form method="post" action="/logout" class="role">
-    <span>{{ user.display_name }} &middot; {{ user.role }}</span>
+    <a href="/account" title="My account">{{ user.display_name }} &middot; {{ user.role }}</a>
     <button class="signout">Sign out</button>
   </form>
   {% endif %}

@@ -24,7 +24,12 @@ import sqlalchemy as sa
 
 log = logging.getLogger("closure_call")
 
-ROLES = ("manager", "reviewer")
+ROLES = ("manager", "reviewer", "sysadmin")
+ROLE_DESCRIPTIONS = {
+    "manager": "Checks conditions, decides, and sends notices",
+    "reviewer": "Reads decisions and history, verifies and replays, asks questions",
+    "sysadmin": "Manages accounts and can erase history; cannot make or send decisions",
+}
 SESSION_COOKIE = "cc_session"
 SESSION_DAYS = 7
 
@@ -50,6 +55,10 @@ class User:
     @property
     def is_manager(self) -> bool:
         return self.role == "manager"
+
+    @property
+    def is_sysadmin(self) -> bool:
+        return self.role == "sysadmin"
 
     @property
     def actor(self) -> str:

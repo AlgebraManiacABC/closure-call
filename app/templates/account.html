@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}My account: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{{ user.display_name }}</h1>
+  <p class="muted">@{{ user.username }} &middot; {{ user.role }}: {{ ROLE_DESCRIPTIONS[user.role] }}.</p>
+  <p class="muted small">Your actions are recorded as &ldquo;{{ user.actor }}&rdquo;.</p>
+</section>
+<section class="card">
+  <h2>Change password</h2>
+  {% if request.query_params.get("done") %}<p class="ok">Password changed. Your other sessions are signed out.</p>{% endif %}
+  <form method="post" action="/account/password" class="stack">
+    <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
+    <label>New password (10+ characters) <input name="new" type="password" minlength="10" autocomplete="new-password" required></label>
+    <label>Repeat new password <input name="repeat" type="password" minlength="10" autocomplete="new-password" required></label>
+    <button class="primary">Change password</button>
+  </form>
+</section>
+{% endblock %}

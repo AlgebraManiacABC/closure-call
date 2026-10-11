@@ -316,13 +316,17 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   `reset_record.py` never deletes accounts. Passwords use stdlib scrypt with a per-user salt.
   Sessions are a signed HttpOnly SameSite=Lax cookie (HMAC with SESSION_SECRET from .env,
   7 days), and carry a fingerprint of the password hash, so changing a password ends sessions.
-  Roles: manager (check, re-pin, decide, draft, send) and reviewer (read, verify, replay,
-  ask). Every ledger actor is `Display Name (@username, role)`. In-memory limits: 5 failed
+  Roles: manager (check, re-pin, decide, draft, send), reviewer (read, verify, replay,
+  ask), and sysadmin (the /admin page: add, disable and reset accounts, and erase history;
+  cannot decide, for separation of duties). Everyone can change their own password at
+  /account. Erasing (`Store.erase_all`, also used by `scripts/reset_record.py`) needs the
+  word ERASE, a reason and the sysadmin's password. The new chain starts with a
+  `record_erased` entry (who, why, counts, and the old chain's head hash), shown on /history. Every ledger actor is `Display Name (@username, role)`. In-memory limits: 5 failed
   sign-ins per username or IP locks for 5 minutes; 8 checks or questions per user per 10
   minutes. Manage accounts with `python scripts/users.py add|list|passwd|disable|enable
   [--db local]`. It prompts for passwords; use PowerShell, since Git Bash echoes them. Notices
   to employees are still signed by the roster's facility manager (E001). `tests/test_auth.py`
-  (8 tests).
+  (12 tests).
 - `.env.example`, `requirements.txt`, `.gitignore`, `README.md`.
 - `.env` holds the team key and is gitignored. Never commit it or print the key.
 

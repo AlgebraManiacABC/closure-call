@@ -25,6 +25,8 @@ def describe(e: dict) -> str:
         return f"agent {'ran' if r['ran'] else 'did not run'}: {len(r['evidence'])} verified quotes, {r['reason']}"
     if e["kind"] == "question":
         return f"Q: {p['question']}  A: {p['answer'][:140]}"
+    if e["kind"] == "record_erased":
+        return f"EARLIER HISTORY ERASED ({p['previous_entries']} entries): {p['reason']}"
     if e["kind"] == "notification_package":
         c = p["package"]["counts"]
         return f"package drafted: notify {c['notify']}, skip {c['skip']} ({p['package']['drafting']})"

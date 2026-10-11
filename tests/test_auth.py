@@ -108,6 +108,63 @@ def test_repeated_failures_lock_the_account_for_a_while():
     auth.failed_logins.clear("ip:testclient")
 
 
+PW["admin"] = secrets.token_urlsafe(12)
+accounts.add("admin", "Test Admin", "sysadmin", PW["admin"])
+
+
+def test_sysadmin_cannot_decide_and_others_cannot_administer():
+    inp = make(gusts([6, 7], 62))
+    eid = store.record_evaluation(inp, evaluate(inp), []).id
+    admin = client("admin")
+    admin.post(f"/e/{eid}/decide", data={"action": "approve"})
+    assert not store.load(eid)["decisions"]  # separation of duties
+    for who in ("mgr", "rev"):
+        c = client(who)
+        assert "error=" in c.get("/admin").headers["location"]
+        r = c.post("/admin/erase", data={"confirm": "ERASE", "reason": "should not work", "password": PW[who]})
+        assert "error=" in r.headers["location"]
+    assert store.counts()["entries"] > 0
+
+
+def test_sysadmin_manages_accounts():
+    admin = client("admin")
+    admin.post("/admin/users", data={"username": "newrev", "display_name": "New Reviewer", "role_name": "reviewer",
+                                     "password": "starting-pass-1"})
+    assert any(u["username"] == "newrev" and u["role"] == "reviewer" for u in accounts.list())
+    admin.post("/admin/users/newrev/disabled", data={"disabled": "1"})
+    assert accounts.authenticate("newrev", "starting-pass-1") is None
+    r = admin.post("/admin/users/admin/disabled", data={"disabled": "1"})
+    assert "error=" in r.headers["location"]  # cannot lock yourself out
+
+
+def test_erase_needs_confirmation_and_password_and_leaves_a_trace():
+    admin = client("admin")
+    before = store.counts()
+    for bad in ({"confirm": "erase", "reason": "clearing test runs", "password": PW["admin"]},
+                {"confirm": "ERASE", "reason": "clearing test runs", "password": "wrong-password"},
+                {"confirm": "ERASE", "reason": "short", "password": PW["admin"]}):
+        admin.post("/admin/erase", data=bad)
+        assert store.counts()["entries"] == before["entries"]
+    admin.post("/admin/erase", data={"confirm": "ERASE", "reason": "clearing test runs", "password": PW["admin"]})
+    after = store.counts()
+    assert after["entries"] == 1 and list(after["by_kind"]) == ["record_erased"]
+    e = store.erasures()[0]
+    assert e["actor"] == "Test Admin (@admin, sysadmin)" and e["payload"]["previous_head"] == before["head"]
+    assert store.verify_chain()["ok"] and accounts.get("mgr") is not None  # accounts survive
+    assert "Earlier history was erased" in client("rev").get("/history").text
+
+
+def test_users_change_their_own_password():
+    accounts.add("self", "Self", "reviewer", "self-password-1")
+    c = TestClient(app, follow_redirects=False)
+    c.post("/login", data={"username": "self", "password": "self-password-1", "next": "/"})
+    r = c.post("/account/password", data={"current": "wrong-one-xx", "new": "self-password-2", "repeat": "self-password-2"})
+    assert "error=" in r.headers["location"]
+    c.post("/account/password", data={"current": "self-password-1", "new": "self-password-2", "repeat": "self-password-2"})
+    assert accounts.authenticate("self", "self-password-2") is not None
+    assert c.get("/history").status_code == 200  # this browser got a fresh session
+
+
 def test_next_cannot_redirect_off_site():
     c = client()
     r = c.post("/login", data={"username": "mgr", "password": PW["mgr"], "next": "//evil.example/"})

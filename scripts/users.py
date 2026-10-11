@@ -5,7 +5,8 @@ Run from the repo root (uses DATABASE_URL, so this manages the live accounts; ad
     python scripts/users.py list
     python scripts/users.py passwd luke
     python scripts/users.py disable luke        (and: enable luke)
-Roles: manager (can check, re-pin, decide and send) and reviewer (can read, verify, replay and ask).
+Roles: manager (check, re-pin, decide, send), reviewer (read, verify, replay, ask), and sysadmin
+(manage accounts, erase history; cannot decide). Sysadmins can also do all of this on the /admin page.
 On Windows, run this in PowerShell or cmd: Git Bash cannot hide what you type at the password prompt.
 """
 import argparse

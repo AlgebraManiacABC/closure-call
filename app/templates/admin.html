@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Admin: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Admin</h1>
+  <p class="muted">Sysadmins manage accounts and can erase history. They cannot make or send decisions:
+    only facility managers can.</p>
+</section>
+
+<section class="card" id="accounts">
+  <h2>Accounts ({{ users|length }})</h2>
+  {% for u in users %}
+  <details class="reason">
+    <summary><span class="r-title">{{ u.display_name }}
+      <span class="asked">@{{ u.username }} &middot; {{ u.role }}{% if u.disabled %} &middot; <b class="bad">disabled</b>{% endif %}</span></span></summary>
+    <div class="r-body">
+      <p class="muted small">{{ ROLE_DESCRIPTIONS[u.role] }}. Created {{ u.created_at|t }}.</p>
+      {% if u.username != user.username %}
+      <form method="post" action="/admin/users/{{ u.username }}/disabled">
+        <input type="hidden" name="disabled" value="{{ '0' if u.disabled else '1' }}">
+        <button>{{ "Enable" if u.disabled else "Disable" }} this account</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/admin/users/{{ u.username }}/password" class="search">
+        <input name="password" type="password" minlength="10" placeholder="New password (10+ characters)" autocomplete="new-password" required>
+        <button>Reset</button>
+      </form>
+      <p class="muted small">Resetting signs them out everywhere.</p>
+    </div>
+  </details>
+  {% endfor %}
+
+  <details class="more"><summary>Add an account</summary>
+    <form method="post" action="/admin/users" class="stack">
+      <label>Username <input name="username" pattern="[a-z0-9][a-z0-9._-]{1,31}" autocapitalize="none" required></label>
+      <label>Name shown in the record <input name="display_name" required></label>
+      <label>Role
+        <select name="role_name">
+          {% for r in ROLES %}<option value="{{ r }}">{{ r }}: {{ ROLE_DESCRIPTIONS[r] }}</option>{% endfor %}
+        </select></label>
+      <label>Starting password (10+ characters; they can change it under their name)
+        <input name="password" type="password" minlength="10" autocomplete="new-password" required></label>
+      <button class="primary">Add account</button>
+    </form>
+  </details>
+</section>
+
+<section class="card" id="erase">
+  <h2>Erase history</h2>
+  <p>The record holds <b>{{ counts.entries }}</b> entries
+    ({% for k, n in counts.by_kind.items() %}{{ n }} {{ k|replace("_", " ") }}{{ ", " if not loop.last }}{% endfor %})
+    and {{ counts.raw_responses }} raw responses.</p>
+  <p class="muted small">Erasing cannot be undone. The new record starts with an entry saying who erased it, when,
+    why, how much was erased, and the hash of the old chain's last entry, so the erasure itself is on the record.
+    Accounts are kept.</p>
+  <details class="more"><summary>Erase everything</summary>
+    <form method="post" action="/admin/erase" class="stack">
+      <label>Reason (recorded) <input name="reason" minlength="10" required placeholder="e.g. Clear test runs before the demo"></label>
+      <label>Your password <input name="password" type="password" autocomplete="current-password" required></label>
+      <label>Type ERASE to confirm <input name="confirm" autocapitalize="characters" required></label>
+      <button class="danger big">Erase the whole decision record</button>
+    </form>
+  </details>
+  {% if erasures %}
+  <h3>Past erasures</h3>
+  <ul class="small">{% for e in erasures %}
+    <li>{{ e.at|t }} by {{ e.actor }}: &ldquo;{{ e.payload.reason }}&rdquo; ({{ e.payload.previous_entries }} entries; old chain ended {{ e.payload.previous_head[:16] }})</li>
+  {% endfor %}</ul>
+  {% endif %}
+</section>
+{% endblock %}
