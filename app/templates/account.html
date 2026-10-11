@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}My account: Closure Call{% endblock %}
+{% block title %}My account: Safety Call{% endblock %}
 {% block content %}
 <section class="card">
   <h1>{{ user.display_name }}</h1>
@@ -27,7 +27,7 @@
       {% if devices %}<form method="post" action="/push/test"><button>Send a test alert</button></form>{% endif %}
     </div>
     <p class="muted small" id="alerts-status"></p>
-    <p class="muted small">iPhone: first tap Share, then <b>Add to Home Screen</b>, open Closure Call from the Home
+    <p class="muted small">iPhone: first tap Share, then <b>Add to Home Screen</b>, open Safety Call from the Home
       Screen, and enable alerts there (iOS 16.4 or later).</p>
     <script>
     (function () {
@@ -39,7 +39,7 @@
       document.getElementById("enable-alerts").addEventListener("click", async function () {
         if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
           status.textContent = /iPhone|iPad/.test(navigator.userAgent)
-            ? "Add Closure Call to your Home Screen first, then open it from there."
+            ? "Add Safety Call to your Home Screen first, then open it from there."
             : "This browser does not support push notifications.";
           return;
         }

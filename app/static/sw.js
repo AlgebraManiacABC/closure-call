@@ -1,8 +1,8 @@
-// Closure Call service worker: shows escalation alerts and opens the decision page when tapped.
+// Safety Call service worker: shows escalation alerts and opens the decision page when tapped.
 self.addEventListener("push", function (event) {
   var data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(data.title || "Closure Call", {
+  event.waitUntil(self.registration.showNotification(data.title || "Safety Call", {
     body: data.body || "A recommendation needs your decision.",
     tag: data.tag || "closure-call",
     renotify: true,

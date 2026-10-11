@@ -1,6 +1,6 @@
 {
-  "name": "Closure Call",
-  "short_name": "Closure Call",
+  "name": "Safety Call",
+  "short_name": "Safety Call",
   "description": "Weather-driven closure decisions for the USDA Service Center",
   "start_url": "/",
   "scope": "/",

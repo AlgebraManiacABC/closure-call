@@ -1,4 +1,4 @@
-"""Closure Call web app: manager decision page, message outbox, decision history.
+"""Safety Call web app: manager decision page, message outbox, decision history.
 
 Run locally:   python scripts/serve.py --db local
 Every page needs a signed-in account (see app/auth.py and scripts/users.py); managers can act,
@@ -32,7 +32,7 @@ from .sources.http import SourceError
 
 logging.basicConfig(level=logging.INFO)
 HERE = Path(__file__).resolve().parent
-app = FastAPI(title="Closure Call")
+app = FastAPI(title="Safety Call")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 store = get_store(os.environ.get("DB") or None)
@@ -339,7 +339,7 @@ def push_remove(request: Request, sub_id: str = Form(...)):
 @app.post("/push/test")
 def push_test(request: Request):
     r = pusher.send_to_user(me(request).username, {
-        "title": "Closure Call: test alert",
+        "title": "Safety Call: test alert",
         "body": "Phone alerts work. You will be notified when a recommendation escalates.",
         "url": "/account", "tag": "closure-call-test"})
     return back(f"/account?pushed={r['sent']}#alerts")

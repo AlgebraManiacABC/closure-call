@@ -197,13 +197,13 @@ def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "
             reason = f"Decision deadline {rec.announce_by:%H:%M} is within the hour and no decision is recorded."
     if reason:
         manager = state.manager_of(f.id)
-        body = (f"Closure Call: {f.display_name}, {day:%a %b %d}: {rec.posture_label}. {reason} "
+        body = (f"Safety Call: {f.display_name}, {day:%a %b %d}: {rec.posture_label}. {reason} "
                 f"Review: {base_url}/e/{eid}")
         delivery = None
         if escalated and push is not None:  # real phone notifications only when things get worse
             before = push_label_for(prev) if prev else "Open"
             delivery = push.send_to_managers({
-                "title": f"Closure Call: {push_label(rec)}",
+                "title": f"Safety Call: {push_label(rec)}",
                 "body": f"{f.display_name}, {day:%a %b %d}. Was: {before}. Tap to review and decide.",
                 "url": f"/e/{eid}", "tag": f"closure-call-{day}"})
         store.record_manager_alert(eid, reason, manager.name, manager.phone, body, push=delivery)

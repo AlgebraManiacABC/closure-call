@@ -1,4 +1,4 @@
-# Closure Call: project context
+# Safety Call: project context
 
 Hack Midwest 2026 project (Kansas City, Oct 10-11). This file records the decisions made
 during planning and what has been built so far (see Repo state).

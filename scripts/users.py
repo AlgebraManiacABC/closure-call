@@ -1,4 +1,4 @@
-"""Manage Closure Call accounts. Passwords are always typed at a prompt (never on the command line).
+"""Manage Safety Call accounts. Passwords are always typed at a prompt (never on the command line).
 
 Run from the repo root (uses DATABASE_URL, so this manages the live accounts; add --db local for dev):
     python scripts/users.py add luke --name "Luke Dunn" --role manager

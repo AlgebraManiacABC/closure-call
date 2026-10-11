@@ -1,4 +1,4 @@
-# Closure Call
+# Safety Call
 
 Weather-driven closure decisions and employee notification for a federal facility.
 Built solo at Hack Midwest 2026 for the USDA "Closure Call" challenge, the AWS Strands
@@ -8,7 +8,7 @@ Live: https://closure-call.algebramaniacabc.org (sign-in required)
 
 ## What it does
 
-When severe weather threatens a USDA Service Center, Closure Call:
+When severe weather threatens a USDA Service Center, Safety Call:
 
 1. **Pulls live data**: NWS alerts, the NWS hourly gridpoint forecast, NOAA river gauges with
    their official flood stages and impact statements, and USGS readings.
