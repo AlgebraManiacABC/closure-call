@@ -59,9 +59,35 @@ def fmt_time(v, tz: str | None = None, fmt: str = "%a %b %d, %I:%M %p") -> str:
 
 
 templates.env.filters["t"] = fmt_time
+templates.env.filters["friendly"] = lambda s: friendly(s)
 templates.env.globals.update(POSTURE_NAMES=POSTURE_NAMES, HOUR=HOUR,
                              CSS_VERSION=int((HERE / "static" / "style.css").stat().st_mtime),
                              DID={"approve": "Approved", "override": "Overridden"})
+
+
+RULE_NAMES = {  # display names only; records keep the rule ids so replays match
+    "WIND-GUST-WARN": "Wind gusts, warning level", "WIND-SUST-WARN": "Sustained wind, warning level",
+    "WIND-GUST-ADV": "Wind gusts, advisory level", "WIND-SUST-ADV": "Sustained wind, advisory level",
+    "SNOW-WARN": "Snow in 12 hours, warning level", "SNOW-ADV": "Snow in 12 hours, advisory level",
+    "ICE-WARN": "Ice buildup, warning level", "ICE-ADV": "Any freezing rain, advisory level",
+    "COLD-WARN": "Wind chill, warning level", "COLD-ADV": "Wind chill, advisory level",
+    "FLOOD-GAUGE-MAJOR": "River at major flood stage", "FLOOD-GAUGE-MODERATE": "River at moderate flood stage",
+    "WIND-ALERT-WARN": "NWS high wind warning", "WIND-ALERT-ADV": "NWS wind advisory",
+    "WINTER-ALERT-WARN": "NWS winter storm, blizzard or ice storm warning", "WINTER-ALERT-ADV": "NWS winter weather advisory",
+    "COLD-ALERT-WARN": "NWS extreme cold warning", "COLD-ALERT-ADV": "NWS cold weather advisory",
+    "FLOOD-ALERT-FFW": "NWS flash flood warning", "FLOOD-ALERT-WARN": "NWS flood warning or advisory",
+    "TIME-DELAY": "Delay past the hazard", "TIME-CLOSE-PERSISTS": "Hazard lasts too long for a delay",
+    "TIME-CLOSE-EARLY-HAZARD": "Hazard arrives before noon", "TIME-EARLY-DISMISS": "Dismiss before the hazard",
+}
+_RULE_RE = re.compile("|".join(sorted(map(re.escape, RULE_NAMES), key=len, reverse=True)))
+
+
+def friendly(text: str) -> str:
+    """Replace rule ids inside engine-written text with their plain names."""
+    return _RULE_RE.sub(lambda m: RULE_NAMES[m.group(0)].lower(), str(text))
+
+
+templates.env.globals["RULE_NAMES"] = RULE_NAMES
 
 
 FIELD_TITLES = {"gust_mph": "Wind gusts of {v:g} mph", "sustained_mph": "Sustained wind of {v:g} mph",

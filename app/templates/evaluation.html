@@ -45,7 +45,7 @@
   <div class="posture-opm">{{ rec.posture_label }}</div>
   <div class="chips">
     <details class="chip"><summary>Confidence: {{ rec.confidence }}</summary>
-      <ul>{% for r in rec.confidence_reasons %}<li>{{ r }}</li>{% endfor %}</ul></details>
+      <ul>{% for r in rec.confidence_reasons %}<li>{{ r|friendly }}</li>{% endfor %}</ul></details>
     {% if rec.announce_by %}<span class="chip">Announce by {{ rec.announce_by|t(tz, "%a %I:%M %p") }}</span>{% endif %}
   </div>
   {% if inputs.notes %}<div class="posture-note">{{ inputs.notes|join(" ") }}</div>{% endif %}
@@ -102,7 +102,7 @@
   {% set changes = rec.what_would_change|length + (report.what_ifs|selectattr("posture", "ne", rec.posture)|list|length if report else 0) %}
   <details class="more"><summary>What would change it ({{ changes }})</summary>
     <ul>
-      {% for c in rec.what_would_change %}<li>{{ c.what }} &rarr; <b>{{ POSTURE_NAMES[c.posture] }}</b></li>{% endfor %}
+      {% for c in rec.what_would_change %}<li>{{ c.what|friendly }} &rarr; <b>{{ POSTURE_NAMES[c.posture] }}</b></li>{% endfor %}
       {% if report %}{% for w in report.what_ifs if w.posture != rec.posture %}<li>{{ w.change }} &rarr; <b>{{ POSTURE_NAMES[w.posture] }}</b></li>{% endfor %}{% endif %}
       {% if not changes %}<li class="muted">Nothing within plausible forecast error.</li>{% endif %}
     </ul>
@@ -221,12 +221,17 @@
 <!-- 6. Evidence and record, closed by default -->
 <section class="card">
   <details class="more"><summary>All threshold checks ({{ rec.checks|selectattr("peak", "ne", none)|list|length }})</summary>
+    <p class="muted small">The worst forecast value during commuting and working hours, against each cutoff. Tap a row for where the cutoff comes from.</p>
     <table class="checks">
-      <tr><th>Check</th><th>Peak</th><th>Threshold</th><th></th></tr>
+      <tr><th>What we check</th><th>Worst forecast</th><th>Cutoff</th><th>Result</th></tr>
       {% for c in rec.checks if c.peak is not none %}
-      <tr class="{{ 'crossed' if c.crossed }}"><td title="{{ c.threshold_source }}">{{ c.rule_id }}</td>
-        <td>{{ c.peak }} {{ c.unit }}</td><td>{{ c.threshold }}</td>
-        <td>{{ "over by" if c.crossed else "short by" }} {{ c.margin|abs }}</td></tr>
+      {% set unit = c.unit.split(" ")[0]|replace("F", "°F") %}
+      <tr class="{{ 'crossed' if c.crossed }}">
+        <td><details class="cutoff"><summary>{{ RULE_NAMES.get(c.rule_id, c.rule_id) }}</summary>{{ c.threshold_source }}</details></td>
+        <td>{{ "%g"|format(c.peak|round(1)) }} {{ unit }}</td>
+        <td>{{ "%g"|format(c.threshold) }} {{ unit }}</td>
+        {% set gap = c.margin|abs %}{% set gap_text = "%g"|format(gap|round(1 if gap >= 1 else 2)) ~ " " ~ unit %}
+        <td>{% if c.crossed %}<b>Crossed</b> by {{ gap_text }}{% else %}{{ gap_text }} away{% endif %}</td></tr>
       {% endfor %}
     </table>
   </details>

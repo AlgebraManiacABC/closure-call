@@ -85,6 +85,11 @@ td, th { text-align: left; vertical-align: top; padding: 6px 4px; border-bottom:
 th { font-size: .8rem; color: var(--muted); font-weight: 600; }
 table.checks td { font-size: .85rem; }
 tr.crossed td { color: var(--closure); }
+table.checks td:not(:first-child) { white-space: nowrap; }
+details.cutoff { margin: 0; font-size: .85rem; color: var(--muted); }
+details.cutoff > summary { color: inherit; font-size: .9rem; }
+tr.crossed details.cutoff > summary { color: var(--closure); }
+details.cutoff[open] > summary { color: var(--ink); font-weight: 600; margin-bottom: 4px; }
 .qa { border-bottom: 1px solid var(--line); padding: 8px 0; }
 .qa .q { font-weight: 600; }
 .timeline { padding-left: 20px; font-size: .9rem; }
