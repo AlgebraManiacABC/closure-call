@@ -260,7 +260,7 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   - `/outbox`: simulated messages and manager alerts;
   - `/history`: reviewer table, with verify-chain;
   - `/raw/{fetch_id}` and `/healthz`.
-  A role cookie (manager or reviewer) hides the forms for reviewers.
+  Every page needs sign-in (see Accounts below); reviewers see no action forms.
 - `app/service.py`: shared steps. "Check now" records the engine result in about 5 s; the
   agent and the package drafting run in background threads, and the page reloads every 4 s
   via `location.reload()` (meta refresh does not reload when the URL has a #fragment).
@@ -312,6 +312,17 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
 - The agent once claimed the Augusta facility was "in the Lincoln valley". The prompts now
   forbid assuming a facility is inside a named area. Watch for this kind of geographic
   inference in demos.
+- Accounts (`app/auth.py`): a `users` table in the same database but separate metadata, so
+  `reset_record.py` never deletes accounts. Passwords use stdlib scrypt with a per-user salt.
+  Sessions are a signed HttpOnly SameSite=Lax cookie (HMAC with SESSION_SECRET from .env,
+  7 days), and carry a fingerprint of the password hash, so changing a password ends sessions.
+  Roles: manager (check, re-pin, decide, draft, send) and reviewer (read, verify, replay,
+  ask). Every ledger actor is `Display Name (@username, role)`. In-memory limits: 5 failed
+  sign-ins per username or IP locks for 5 minutes; 8 checks or questions per user per 10
+  minutes. Manage accounts with `python scripts/users.py add|list|passwd|disable|enable
+  [--db local]`. It prompts for passwords; use PowerShell, since Git Bash echoes them. Notices
+  to employees are still signed by the roster's facility manager (E001). `tests/test_auth.py`
+  (8 tests).
 - `.env.example`, `requirements.txt`, `.gitignore`, `README.md`.
 - `.env` holds the team key and is gitignored. Never commit it or print the key.
 

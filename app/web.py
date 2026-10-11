@@ -1,7 +1,8 @@
 """Closure Call web app: manager decision page, message outbox, decision history.
 
-Run locally:   uvicorn app.web:app --reload        (add DB=local to use the SQLite file)
-No login for the demo: a role switcher (cookie) picks manager or reviewer.
+Run locally:   python scripts/serve.py --db local
+Every page needs a signed-in account (see app/auth.py and scripts/users.py); managers can act,
+reviewers can read, verify, replay and ask. Each ledger entry records who did it.
 """
 import logging
 import os
@@ -17,7 +18,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import service
+from . import auth, service
 from .record import RecordError, get_store
 from .rules import HOUR
 from .sources import geocode
@@ -31,6 +32,8 @@ templates = Jinja2Templates(directory=HERE / "templates")
 store = get_store(os.environ.get("DB") or None)
 state = service.AppState()
 state.restore(store)  # survive restarts and redeploys at the last evaluated location
+accounts = auth.Accounts(store.engine)
+PUBLIC_PATHS = ("/login", "/healthz", "/static/")
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 POSTURE_NAMES = {"normal": "Normal operations", "unscheduled_leave": "Unscheduled leave / telework",
@@ -128,13 +131,19 @@ def reason_rows(findings, inputs, evidence) -> list[dict]:
     return rows
 
 
+def me(request: Request) -> auth.User:
+    return request.state.user
+
+
 def role(request: Request) -> str:
-    return request.cookies.get("role", "manager")
+    return me(request).role
 
 
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
-    return templates.TemplateResponse(request, name, {"role": role(request), "state": state,
-                                                      "error": request.query_params.get("error"), **ctx})
+    user = getattr(request.state, "user", None)
+    return templates.TemplateResponse(request, name, {"role": user.role if user else None, "user": user,
+                                                      "state": state, "error": request.query_params.get("error"),
+                                                      **ctx})
 
 
 def back(url: str, error: str | None = None) -> RedirectResponse:
@@ -143,18 +152,70 @@ def back(url: str, error: str | None = None) -> RedirectResponse:
     return RedirectResponse(url, status_code=303)
 
 
+def managers_only(request: Request, url: str) -> RedirectResponse | None:
+    """Reviewers can read and ask, but not act."""
+    return None if me(request).is_manager else back(url, "Only a facility manager account can do that")
+
+
+# ---------- sign-in ----------
+
+@app.middleware("http")
+async def require_sign_in(request: Request, call_next):
+    path = request.url.path
+    if path.startswith(PUBLIC_PATHS):
+        request.state.user = None
+        return await call_next(request)
+    user = auth.read_session(request.cookies.get(auth.SESSION_COOKIE), accounts)
+    if user is None:
+        if path.endswith("/status") or path.startswith("/raw/"):
+            return JSONResponse({"error": "signed out"}, status_code=401)
+        nxt = path + (("?" + request.url.query) if request.url.query else "")
+        return RedirectResponse("/login?next=" + quote(nxt), status_code=303)
+    request.state.user = user
+    return await call_next(request)
+
+
+def _safe_next(nxt: str) -> str:
+    return nxt if nxt.startswith("/") and not nxt.startswith("//") else "/"
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request, next: str = "/"):
+    return render(request, "login.html", next=_safe_next(next), no_accounts=accounts.count() == 0)
+
+
+@app.post("/login")
+def login(request: Request, username: str = Form(...), password: str = Form(...), next: str = Form("/")):
+    ip = request.client.host if request.client else "?"
+    keys = (f"user:{username.strip().lower()}", f"ip:{ip}")
+    retry = "/login?next=" + quote(_safe_next(next))
+    if any(auth.failed_logins.blocked(k) for k in keys):
+        return back(retry, "Too many failed attempts. Wait 5 minutes and try again.")
+    user = accounts.authenticate(username, password)
+    if user is None:
+        for k in keys:
+            auth.failed_logins.hit(k)
+        return back(retry, "Wrong username or password")
+    for k in keys:
+        auth.failed_logins.clear(k)
+    resp = back(_safe_next(next))
+    resp.set_cookie(auth.SESSION_COOKIE, auth.make_session(user), max_age=auth.SESSION_DAYS * 86400,
+                    httponly=True, samesite="lax", secure=request.url.scheme == "https")
+    return resp
+
+
+@app.post("/logout")
+def logout():
+    resp = back("/login")
+    resp.delete_cookie(auth.SESSION_COOKIE)
+    return resp
+
+
 # ---------- pages ----------
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return back("/history" if role(request) == "reviewer" else "/manager")
-
-
-@app.get("/role/{name}")
-def set_role(name: str, request: Request):
-    resp = back(request.headers.get("referer") or "/")
-    resp.set_cookie("role", name if name in ("manager", "reviewer") else "manager", max_age=86400 * 7)
-    return resp
+    return back("/manager" if me(request).is_manager else "/history")
 
 
 def pending_alerts(facility_id: str, limit: int = 3) -> list[dict]:
@@ -218,7 +279,9 @@ def locations(request: Request, q: str = ""):
 
 
 @app.post("/pin")
-def pin(lat: float = Form(...), lon: float = Form(...)):
+def pin(request: Request, lat: float = Form(...), lon: float = Form(...)):
+    if (denied := managers_only(request, "/locations")):
+        return denied
     if not (17 <= lat <= 72 and -180 <= lon <= -64):
         return back("/locations", "Pick a point in the United States")
     try:
@@ -229,13 +292,17 @@ def pin(lat: float = Form(...), lon: float = Form(...)):
 
 
 @app.post("/check")
-def check_now(day: str = Form("next")):
+def check_now(request: Request, day: str = Form("next")):
+    if (denied := managers_only(request, "/manager")):
+        return denied
+    if not auth.model_actions.hit(me(request).username):
+        return back("/manager", "Too many checks and questions in the last 10 minutes; please wait a few minutes")
     f = state.facility
     today = datetime.now(f.tz).date()
     try:
         d = {"next": f.next_operating_day(), "today": today, "tomorrow": today + timedelta(days=1)}.get(day) \
             or date.fromisoformat(day)
-        eid = service.check(store, f, d, actor=f"{state.manager.name} (check now)")
+        eid = service.check(store, f, d, actor=me(request).actor)
     except Exception as e:
         return back("/manager", f"Check failed: {type(e).__name__}: {e}"[:300])
     return back(f"/e/{eid}")
@@ -281,17 +348,20 @@ def evaluation_status(eid: str):
 
 @app.post("/e/{eid}/ask")
 def ask(eid: str, request: Request, question: str = Form(...)):
-    who = f"{state.manager.name} (facility manager)" if role(request) == "manager" else "Reviewer"
+    if not auth.model_actions.hit(me(request).username):
+        return back(f"/e/{eid}#qa", "Too many checks and questions in the last 10 minutes; please wait a few minutes")
     if question.strip():
-        service.ask(store, eid, question.strip()[:500], who)
+        service.ask(store, eid, question.strip()[:500], me(request).actor)
     return back(f"/e/{eid}#qa")
 
 
 @app.post("/e/{eid}/decide")
-def decide(eid: str, action: str = Form(...), posture: str = Form(""), delay_hours: str = Form(""),
-           dismissal_time: str = Form(""), reason: str = Form("")):
+def decide(eid: str, request: Request, action: str = Form(...), posture: str = Form(""),
+           delay_hours: str = Form(""), dismissal_time: str = Form(""), reason: str = Form("")):
+    if (denied := managers_only(request, f"/e/{eid}")):
+        return denied
     try:
-        store.record_decision(eid, action, f"{state.manager.name} (facility manager)", reason,
+        store.record_decision(eid, action, me(request).actor, reason,
                               posture or None, int(delay_hours) if delay_hours else None, dismissal_time or None)
     except (RecordError, ValueError) as e:
         return back(f"/e/{eid}#decide", str(e))
@@ -299,7 +369,9 @@ def decide(eid: str, action: str = Form(...), posture: str = Form(""), delay_hou
 
 
 @app.post("/e/{eid}/package")
-def package(eid: str):
+def package(eid: str, request: Request):
+    if (denied := managers_only(request, f"/e/{eid}")):
+        return denied
     try:
         service.start_package(store, eid)
     except RecordError as e:
@@ -308,9 +380,11 @@ def package(eid: str):
 
 
 @app.post("/e/{eid}/send")
-def send(eid: str):
+def send(eid: str, request: Request):
+    if (denied := managers_only(request, f"/e/{eid}")):
+        return denied
     try:
-        store.record_send(eid, f"{state.manager.name} (facility manager)")
+        store.record_send(eid, me(request).actor)
     except RecordError as e:
         return back(f"/e/{eid}#notify", str(e))
     return back(f"/outbox?e={eid}")

@@ -149,6 +149,12 @@ form.search input { flex: 1; min-width: 0; }
   main { max-width: 900px; }
 }
 
+/* Sign-in */
+.signin { max-width: 420px; margin: 24px auto; }
+button.signout { padding: 2px 10px; font-size: .85rem; border-radius: 12px; background: transparent;
+  color: #fff; border: 1px solid rgba(255,255,255,.5); }
+form.role { margin: 0; }
+
 /* Manager alerts awaiting a decision */
 .alert-item { border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 10px; }
 .alert-item:last-child { border-bottom: 0; margin-bottom: 0; }
