@@ -52,12 +52,15 @@
   {% endif %}
   {% if shown_opm != shown_short %}<div class="posture-opm">{{ shown_opm }}</div>{% endif %}
   {% if decision %}<div class="posture-meta">by {{ decision.actor }} &middot; {{ decision.at|t(tz, "%a %I:%M %p") }}</div>{% endif %}
+  {# Confidence and data notes describe the recommendation, so they go once a person has decided. #}
+  {% if not decision or rec.announce_by %}
   <div class="chips">
-    <details class="chip"><summary>Confidence: {{ rec.confidence }}</summary>
-      <ul>{% for r in rec.confidence_reasons %}<li>{{ r|friendly }}</li>{% endfor %}</ul></details>
+    {% if not decision %}<details class="chip"><summary>Confidence: {{ rec.confidence }}</summary>
+      <ul>{% for r in rec.confidence_reasons %}<li>{{ r|friendly }}</li>{% endfor %}</ul></details>{% endif %}
     {% if rec.announce_by %}<span class="chip">Announce by {{ rec.announce_by|t(tz, "%a %I:%M %p") }}</span>{% endif %}
   </div>
-  {% if inputs.notes %}<div class="posture-note">{{ inputs.notes|join(" ") }}</div>{% endif %}
+  {% endif %}
+  {% if inputs.notes and not decision %}<div class="posture-note">{{ inputs.notes|join(" ") }}</div>{% endif %}
 </section>
 
 {% if decision and decision.payload.action == "override" %}
@@ -100,6 +103,12 @@
   </div>
   <div class="legend"><span class="hour l0"></span>clear <span class="hour l1"></span>advisory <span class="hour l2"></span>warning</div>
 
+  {% if decision %}{# moved here from the top card once a person has decided #}
+  <details class="more"><summary>Recommendation confidence: {{ rec.confidence }}</summary>
+    <ul>{% for r in rec.confidence_reasons %}<li>{{ r|friendly }}</li>{% endfor %}</ul>
+    {% if inputs.notes %}<p class="small muted">{{ inputs.notes|join(" ") }}</p>{% endif %}
+  </details>
+  {% endif %}
 
   {% if also %}
   <details class="more"><summary>Also noted ({{ also|length }}), not deciding</summary>
