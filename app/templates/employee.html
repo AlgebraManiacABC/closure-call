@@ -29,13 +29,36 @@
       <div class="checkrow">{% for w in WEEKDAYS[:5] %}<label><input type="checkbox" name="telework_days" value="{{ w }}" {{ "checked" if e.telework_days and w in e.telework_days }}> {{ w }}</label>{% endfor %}</div></div>
     <label>Notes <input name="notes" value="{{ e.notes or '' }}"></label>
     <details class="more" {{ "open" if e.planned_leave }}><summary>Planned leave ({{ (e.planned_leave or [])|length }})</summary>
-      <p class="muted small">People on approved leave that day are not sent notices. Clear both dates to remove a period.</p>
-      {% for p in (e.planned_leave or []) + [{}, {}] %}
-      <div class="pair">
-        <label>From <input type="date" name="leave_start" value="{{ p.start or '' }}"></label>
-        <label>Through <input type="date" name="leave_end" value="{{ p.end or '' }}"></label>
+      <p class="muted small">People on approved leave that day are not sent notices.</p>
+      <div id="leave-rows">
+        {% for p in e.planned_leave or [] %}
+        <div class="leave-row">
+          <label>From <input type="date" name="leave_start" value="{{ p.start }}" required></label>
+          <label>Through <input type="date" name="leave_end" value="{{ p.end }}" required></label>
+          {% if can_edit %}<button type="button" class="trash" title="Remove this leave" aria-label="Remove this leave">&#128465;</button>{% endif %}
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
+      {% if can_edit %}<button type="button" id="add-leave">+ Add leave</button>{% endif %}
+      <template id="leave-template">
+        <div class="leave-row">
+          <label>From <input type="date" name="leave_start" required></label>
+          <label>Through <input type="date" name="leave_end" required></label>
+          <button type="button" class="trash" title="Remove this leave" aria-label="Remove this leave">&#128465;</button>
+        </div>
+      </template>
+      <script>
+        (function () {
+          var rows = document.getElementById("leave-rows"), add = document.getElementById("add-leave");
+          rows.addEventListener("click", function (ev) {
+            if (ev.target.closest(".trash")) { ev.target.closest(".leave-row").remove(); }
+          });
+          if (add) add.addEventListener("click", function () {
+            rows.appendChild(document.getElementById("leave-template").content.cloneNode(true));
+            rows.lastElementChild.querySelector("input").focus();
+          });
+        })();
+      </script>
     </details>
     <details class="more" {{ "open" if e.detail }}><summary>On detail{% if e.detail %}: {{ e.detail.location }}{% endif %}</summary>
       {% if e.detail and e.detail.location == facility_id %}<p class="muted small">Detailed here from another office.</p>{% endif %}
