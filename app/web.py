@@ -22,7 +22,7 @@ from fastapi.templating import Jinja2Templates
 from . import auth, service
 from . import push as push_mod
 from .record import RecordError, get_store
-from .facility import WEEKDAYS, facility_data, roster_data
+from .facility import WEEKDAYS, facility_data, federal_holidays, roster_data
 from .facility import load_facility as load_facility_config
 from .facility import load_roster as load_roster_config
 from .organization import ACCESSIBILITY, Organization, OrgError
@@ -635,7 +635,7 @@ def org_editors_only(request: Request) -> RedirectResponse | None:
 
 
 def _form_dict(form) -> dict:
-    multi = ("operating_days", "telework_days", "leave_start", "leave_end")
+    multi = ("operating_days", "telework_days", "leave_start", "leave_end", "closed_date", "closed_name")
     return {k: (form.getlist(k) if k in multi else form.get(k)) for k in form.keys()}
 
 
@@ -647,7 +647,10 @@ def _refresh_state():
 @app.get("/organization", response_class=HTMLResponse)
 def organization_page(request: Request):
     u = me(request)
+    today = date.today()
+    holidays = [(d, n) for y in (today.year, today.year + 1) for d, n in federal_holidays(y).items() if d >= today]
     return render(request, "organization.html", fac=facility_data(), roster=roster_data()["employees"],
+                  holidays=holidays,
                   updated=org.updated(), can_edit=u.is_manager or u.is_sysadmin, WEEKDAYS=WEEKDAYS,
                   tz=state.facility.pin.time_zone)
 

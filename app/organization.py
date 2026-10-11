@@ -83,14 +83,11 @@ class Organization:
         d["commute_windows"] = {"morning": [_hm(form, "morning_start"), _hm(form, "morning_end")],
                                 "evening": [_hm(form, "evening_start"), _hm(form, "evening_end")]}
         d["decision_deadlines"] = {**d.get("decision_deadlines", {}), "delay_or_closure_by": _hm(form, "decide_by")}
-        hol = []
-        for line in re.split(r"[\s,]+", form.get("holidays", "")):
-            if line:
-                try:
-                    hol.append(date.fromisoformat(line).isoformat())
-                except ValueError:
-                    raise OrgError(f"Holiday '{line}' is not a date like 2026-11-26")
-        d["federal_holidays"] = sorted(set(hol))
+        extra = {}
+        for when, why in zip(form.get("closed_date", []), form.get("closed_name", [])):
+            if when:
+                extra[_date(when, "Closed day")] = why.strip() or "Facility closed"
+        d["extra_closed_days"] = [{"date": k, "name": v} for k, v in sorted(extra.items())]
         _check(lambda: fac.facility_from_dict(d))
         before = fac.facility_data()
         changed = sorted(k for k in d if d.get(k) != before.get(k))

@@ -94,11 +94,15 @@ def test_sysadmin_changes_the_facility_manager_and_hours_and_survives_restart():
     form = {"name": "USDA Service Center", "agencies": "FSA, NRCS", "manager_employee_id": "E002",
             "open": "07:30", "close": "16:00", "operating_days": ["Mon", "Tue", "Wed", "Thu"],
             "morning_start": "06:00", "morning_end": "08:00", "evening_start": "15:30", "evening_end": "17:30",
-            "decide_by": "04:30", "holidays": "\n".join(f["federal_holidays"])}
+            "decide_by": "04:30", "closed_date": ["2026-10-15", ""], "closed_name": ["Building maintenance", ""]}
     r = c.post("/organization/facility", data=form)
     assert "error" not in r.headers["location"], r.headers["location"]
     assert state.facility.manager_employee_id == "E002" and state.facility.operating_days == ["Mon", "Tue", "Wed", "Thu"]
     assert state.facility.pin == pin  # editing the profile keeps the current location
+    from datetime import date
+    assert not state.facility.is_operating_day(date(2026, 10, 15))  # the extra closed day
+    assert not state.facility.is_operating_day(date(2026, 11, 26))  # Thanksgiving, computed
+    assert state.facility.is_operating_day(date(2026, 10, 14))
     r = client("mgr").post("/organization/employee/E002/remove")
     assert "facility+manager" in r.headers["location"] or "facility%20manager" in r.headers["location"]
     fac.set_override("facility", None)

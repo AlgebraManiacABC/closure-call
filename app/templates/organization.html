@@ -34,7 +34,43 @@
       <label>to <input type="time" name="evening_end" value="{{ fac.commute_windows.evening[1] }}" required></label>
     </div>
     <label>Decide delays and closures by <input type="time" name="decide_by" value="{{ fac.decision_deadlines.delay_or_closure_by }}" required></label>
-    <label>Holidays (one date per line, like 2026-11-26) <textarea name="holidays" rows="4">{{ fac.federal_holidays|join("\n") }}</textarea></label>
+    <details class="more"><summary>Federal holidays (closed; worked out automatically)</summary>
+      <p class="muted small">Computed from 5 U.S.C. 6103, the list OPM publishes: a holiday on a Saturday is observed
+        the Friday before, and one on a Sunday the Monday after.</p>
+      <ul class="small">{% for d, name in holidays %}<li>{{ d.strftime("%a %b %d, %Y") }}: {{ name }}</li>{% endfor %}</ul>
+    </details>
+    <details class="more" {{ "open" if fac.extra_closed_days }}><summary>Other closed days for this facility ({{ (fac.extra_closed_days or [])|length }})</summary>
+      <p class="muted small">Days this office is closed on top of federal holidays, such as a state holiday or a planned building closure.</p>
+      <div class="rows" id="closed-rows">
+        {% for x in fac.extra_closed_days or [] %}
+        <div class="leave-row">
+          <label>Date <input type="date" name="closed_date" value="{{ x.date }}" required></label>
+          <label>Why <input name="closed_name" value="{{ x.name }}"></label>
+          {% if can_edit %}<button type="button" class="trash" title="Remove this day" aria-label="Remove this day">&#128465;</button>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% if can_edit %}<button type="button" class="add-row" data-rows="closed-rows" data-template="closed-template">+ Add a closed day</button>{% endif %}
+      <template id="closed-template">
+        <div class="leave-row">
+          <label>Date <input type="date" name="closed_date" required></label>
+          <label>Why <input name="closed_name" placeholder="e.g. Building maintenance"></label>
+          <button type="button" class="trash" title="Remove this day" aria-label="Remove this day">&#128465;</button>
+        </div>
+      </template>
+    </details>
+    <script>
+      document.addEventListener("click", function (ev) {
+        var t = ev.target.closest(".trash");
+        if (t) { t.closest(".leave-row").remove(); return; }
+        var a = ev.target.closest(".add-row");
+        if (a) {
+          var rows = document.getElementById(a.dataset.rows);
+          rows.appendChild(document.getElementById(a.dataset.template).content.cloneNode(true));
+          rows.lastElementChild.querySelector("input").focus();
+        }
+      });
+    </script>
     {% if can_edit %}<button class="primary">Save facility</button>{% endif %}
     </fieldset>
   </form>

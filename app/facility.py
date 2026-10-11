@@ -18,6 +18,37 @@ def _hm(s: str) -> time:
     return time.fromisoformat(s)
 
 
+# ---------- federal holidays ----------
+
+def _nth(year: int, month: int, weekday: int, n: int) -> date:
+    """The nth given weekday of a month (n = -1 for the last one). Monday is 0."""
+    if n > 0:
+        first = date(year, month, 1)
+        return first + timedelta(days=(weekday - first.weekday()) % 7 + 7 * (n - 1))
+    last = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
+    return last - timedelta(days=(last.weekday() - weekday) % 7)
+
+
+def federal_holidays(year: int) -> dict[date, str]:
+    """Observed federal holidays for a year, computed from 5 U.S.C. 6103 (the list OPM publishes): a holiday
+    on a Saturday is observed the Friday before, and one on a Sunday the Monday after."""
+    days = {}
+    for y in (year, year + 1):  # Jan 1 on a Saturday is observed on Dec 31 of the year before
+        fixed = {date(y, 1, 1): "New Year's Day", date(y, 6, 19): "Juneteenth", date(y, 7, 4): "Independence Day",
+                 date(y, 11, 11): "Veterans Day", date(y, 12, 25): "Christmas Day"}
+        for d, name in fixed.items():
+            d = d - timedelta(days=1) if d.weekday() == 5 else d + timedelta(days=1) if d.weekday() == 6 else d
+            days[d] = name
+        days.update({_nth(y, 1, 0, 3): "Birthday of Martin Luther King, Jr.", _nth(y, 2, 0, 3): "Washington's Birthday",
+                     _nth(y, 5, 0, -1): "Memorial Day", _nth(y, 9, 0, 1): "Labor Day", _nth(y, 10, 0, 2): "Columbus Day",
+                     _nth(y, 11, 3, 4): "Thanksgiving Day"})
+    return dict(sorted((d, n) for d, n in days.items() if d.year == year))
+
+
+def federal_holiday(d: date) -> str | None:
+    return federal_holidays(d.year).get(d)
+
+
 # ---------- facility ----------
 
 @dataclass(frozen=True)
@@ -43,7 +74,7 @@ class Facility:
     evening_commute: tuple[time, time]
     delay_or_closure_by: time
     building: dict
-    federal_holidays: frozenset[date]
+    federal_holidays: frozenset[date]  # facility-specific extra closed days; federal ones come from federal_holiday()
 
     @property
     def display_name(self) -> str:
@@ -54,7 +85,8 @@ class Facility:
         return ZoneInfo(self.pin.time_zone)
 
     def is_operating_day(self, d: date) -> bool:
-        return WEEKDAYS[d.weekday()] in self.operating_days and d not in self.federal_holidays
+        return (WEEKDAYS[d.weekday()] in self.operating_days and federal_holiday(d) is None
+                and d not in self.federal_holidays)
 
     def next_operating_day(self, now: datetime | None = None) -> date:
         """The day a decision is for: today if before opening on an operating day, else the next one."""
@@ -124,7 +156,8 @@ def facility_from_dict(d: dict) -> Facility:
         evening_commute=(_hm(cw["evening"][0]), _hm(cw["evening"][1])),
         delay_or_closure_by=_hm(dl["delay_or_closure_by"]),
         building=d["building"],
-        federal_holidays=frozenset(date.fromisoformat(x) for x in d["federal_holidays"]),
+        # Federal holidays are computed; the old JSON "federal_holidays" list is no longer read.
+        federal_holidays=frozenset(date.fromisoformat(x["date"]) for x in d.get("extra_closed_days", [])),
     )
 
 
