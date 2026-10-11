@@ -14,7 +14,7 @@ from .collect import collect
 from .facility import Facility, Pin, load_facility, load_roster, repin_to_point
 from .notify import Decided, build_package
 from .record import RecordError, Store
-from .rules import Inputs, evaluate
+from .rules import POSTURE_RANK, Inputs, evaluate
 from .sources import hotspots
 
 log = logging.getLogger("closure_call")
@@ -151,18 +151,36 @@ def start_package(store: Store, eid: str, use_agent: bool = True):
 
 # ---------- monitor: prompts the manager only when something changes ----------
 
-def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "next") -> str | None:
+PUSH_LABELS = {"normal": "Open", "unscheduled_leave": "Leave or telework allowed", "closure": "Closed"}
+
+
+def severity(posture: str, delay_hours: int | None = None) -> tuple:
+    """Higher is worse: open < leave option < delay or early dismissal < closure; a longer delay is worse."""
+    return POSTURE_RANK[posture], delay_hours or 0
+
+
+def push_label(rec) -> str:
+    if rec.posture == "delayed_arrival":
+        return f"Delayed arrival, {rec.delay_hours} hours"
+    if rec.posture == "early_dismissal":
+        return f"Early dismissal at {rec.dismissal_time:%I:%M %p}".replace(" 0", " ")
+    return PUSH_LABELS[rec.posture]
+
+
+def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "next", push=None) -> str | None:
     """One scheduled check. Records an evaluation every time; alerts the manager only when a non-normal
     posture first appears, the posture changes, or the decision deadline is near with no decision.
     day_mode "tomorrow" watches the next calendar day as if open (for weekend demos)."""
     f = state.facility
     day = f.next_operating_day() if day_mode == "next" else datetime.now(f.tz).date() + timedelta(days=1)
     key = (f.pin.lat, f.pin.lon, str(day))  # all pins share one facility id, so key by location
-    prev = state.last_seen.get(key)  # (posture, evaluation id)
+    prev = state.last_seen.get(key)  # (posture, evaluation id, delay hours)
     inputs, fetched = collect(f, day)
     rec = evaluate(inputs)
     eid = store.record_evaluation(inputs, rec, fetched, actor="monitor").id
-    state.last_seen[key] = (rec.posture, eid)
+    state.last_seen[key] = (rec.posture, eid, rec.delay_hours)
+    was = severity(prev[0], prev[2]) if prev else severity("normal")
+    escalated = severity(rec.posture, rec.delay_hours) > was
     reason = None
     if (prev is None and rec.posture != "normal") or (prev is not None and prev[0] != rec.posture):
         reason = (f"Recommendation changed from {prev[0].replace('_', ' ')} to {rec.posture.replace('_', ' ')}."
@@ -177,15 +195,29 @@ def monitor_tick(store: Store, state: AppState, base_url: str, day_mode: str = "
         manager = state.manager
         body = (f"Closure Call: {f.display_name}, {day:%a %b %d}: {rec.posture_label}. {reason} "
                 f"Review: {base_url}/e/{eid}")
-        store.record_manager_alert(eid, reason, manager.name, manager.phone, body)
+        delivery = None
+        if escalated and push is not None:  # real phone notifications only when things get worse
+            before = push_label_for(prev) if prev else "Open"
+            delivery = push.send_to_managers({
+                "title": f"Closure Call: {push_label(rec)}",
+                "body": f"{f.display_name}, {day:%a %b %d}. Was: {before}. Tap to review and decide.",
+                "url": f"/e/{eid}", "tag": f"closure-call-{day}"})
+        store.record_manager_alert(eid, reason, manager.name, manager.phone, body, push=delivery)
     return eid if reason else None
 
 
-def run_monitor(store: Store, state: AppState, base_url: str, minutes: float, day_mode: str = "next"):
+def push_label_for(prev: tuple) -> str:
+    posture, _, hours = prev
+    if posture == "delayed_arrival":
+        return f"Delayed arrival, {hours} hours"
+    return PUSH_LABELS.get(posture, posture.replace("_", " ").capitalize())
+
+
+def run_monitor(store: Store, state: AppState, base_url: str, minutes: float, day_mode: str = "next", push=None):
     def loop():
         while True:
             try:
-                monitor_tick(store, state, base_url, day_mode)
+                monitor_tick(store, state, base_url, day_mode, push)
             except Exception:
                 log.exception("monitor tick failed")
             _time.sleep(minutes * 60)

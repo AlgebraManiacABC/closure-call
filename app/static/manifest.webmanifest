@@ -1,0 +1,14 @@
+{
+  "name": "Closure Call",
+  "short_name": "Closure Call",
+  "description": "Weather-driven closure decisions for the USDA Service Center",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f2",
+  "theme_color": "#1f4e3d",
+  "icons": [
+    {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

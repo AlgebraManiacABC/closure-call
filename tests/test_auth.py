@@ -212,6 +212,32 @@ def test_brief_deliverables_are_on_the_pages():
     assert "error=" in r.headers["location"]
 
 
+def test_escalations_push_to_manager_devices_and_downgrades_do_not():
+    from datetime import datetime, timedelta
+    from unittest import mock
+    from app import service
+    from app.web import pusher, state
+    sub = {"endpoint": "https://push.example/abc", "keys": {"p256dh": "k" * 20, "auth": "a" * 10}}
+    pusher.subscribe("mgr", sub, "Mozilla/5.0 (Linux; Android 14) Chrome/130")
+    pusher.subscribe("rev", {**sub, "endpoint": "https://push.example/rev"}, "")  # reviewers get no escalations
+    assert client("rev").get("/healthz").status_code == 200
+    calm = make().model_copy(update={"facility_id": state.facility.id})
+    windy = make(gusts([6, 7], 62)).model_copy(update={"facility_id": state.facility.id})
+    stormy = make(gusts(range(6, 18), 62)).model_copy(update={"facility_id": state.facility.id})
+    sent = []
+    os.environ.setdefault("VAPID_PUBLIC_KEY", "test")
+    os.environ.setdefault("VAPID_PRIVATE_KEY", "test")
+    state.last_seen.clear()
+    with mock.patch("pywebpush.webpush", side_effect=lambda **kw: sent.append(kw["subscription_info"]["endpoint"])), \
+            mock.patch.object(service, "_run_bg"):
+        for inp in (calm, windy, stormy, windy):  # normal, delay, closure, back to delay
+            with mock.patch.object(service, "collect", return_value=(inp, [])):
+                service.monitor_tick(store, state, "https://x", "tomorrow", pusher)
+    assert sent == ["https://push.example/abc", "https://push.example/abc"], sent  # two escalations, manager only
+    alerts = [e["payload"] for e in store.outbox(20) if e["kind"] == "manager_alert"][:3]
+    assert "push" not in alerts[0] and alerts[1]["push"]["sent"] == 1  # newest first: downgrade had no push
+
+
 def test_next_cannot_redirect_off_site():
     c = client()
     r = c.post("/login", data={"username": "mgr", "password": PW["mgr"], "next": "//evil.example/"})

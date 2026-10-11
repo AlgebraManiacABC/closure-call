@@ -14,11 +14,12 @@ from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form, Request
 from markupsafe import Markup, escape
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import auth, service
+from . import push as push_mod
 from .record import RecordError, get_store
 from .facility import load_facility as load_facility_config
 from .rules import HOUR, load_thresholds
@@ -34,7 +35,8 @@ store = get_store(os.environ.get("DB") or None)
 state = service.AppState()
 state.restore(store)  # survive restarts and redeploys at the last evaluated location
 accounts = auth.Accounts(store.engine, store.audit)
-PUBLIC_PATHS = ("/login", "/healthz", "/static/")
+pusher = push_mod.Push(store.engine)
+PUBLIC_PATHS = ("/login", "/healthz", "/static/", "/sw.js")
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 POSTURE_NAMES = {"normal": "Normal operations", "unscheduled_leave": "Unscheduled leave / telework",
@@ -228,7 +230,40 @@ def index(request: Request):
 
 @app.get("/account", response_class=HTMLResponse)
 def account_page(request: Request):
-    return render(request, "account.html", ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS)
+    return render(request, "account.html", ROLE_DESCRIPTIONS=auth.ROLE_DESCRIPTIONS,
+                  devices=pusher.devices(me(request).username), vapid_public_key=push_mod.public_key(),
+                  push_ready=push_mod.configured(), pushed=request.query_params.get("pushed"))
+
+
+@app.get("/sw.js")
+def service_worker():
+    """Served from the root so it may handle notifications for the whole site."""
+    return FileResponse(HERE / "static" / "sw.js", media_type="text/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
+@app.post("/push/subscribe")
+async def push_subscribe(request: Request):
+    try:
+        pusher.subscribe(me(request).username, await request.json(), request.headers.get("user-agent", ""))
+    except (ValueError, TypeError) as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    return {"ok": True}
+
+
+@app.post("/push/remove")
+def push_remove(request: Request, sub_id: str = Form(...)):
+    pusher.remove(me(request).username, sub_id)
+    return back("/account#alerts")
+
+
+@app.post("/push/test")
+def push_test(request: Request):
+    r = pusher.send_to_user(me(request).username, {
+        "title": "Closure Call: test alert",
+        "body": "Phone alerts work. You will be notified when a recommendation escalates.",
+        "url": "/account", "tag": "closure-call-test"})
+    return back(f"/account?pushed={r['sent']}#alerts")
 
 
 @app.post("/account/password")
@@ -555,4 +590,4 @@ def healthz():
 def start_monitor():
     minutes = float(os.environ.get("MONITOR_MINUTES", "0") or 0)
     if minutes > 0:
-        service.run_monitor(store, state, BASE_URL, minutes, os.environ.get("MONITOR_DAY", "next"))
+        service.run_monitor(store, state, BASE_URL, minutes, os.environ.get("MONITOR_DAY", "next"), pusher)

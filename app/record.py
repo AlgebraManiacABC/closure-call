@@ -259,13 +259,16 @@ class Store:
                             {"decision_hash": decision["hash"], "package": package.model_dump(mode="json")},
                             "system", evaluation_id=evaluation_id, day=decision["day"], posture=package.decided.posture)
 
-    def record_manager_alert(self, evaluation_id: str, reason: str, manager: str, phone: str, body: str) -> EntryRef:
-        """The app prompting the facility manager (simulated text) because something changed."""
+    def record_manager_alert(self, evaluation_id: str, reason: str, manager: str, phone: str, body: str,
+                             push: dict | None = None) -> EntryRef:
+        """The app prompting the facility manager because something changed. The text message is simulated;
+        `push` records real browser-push delivery to managers' devices, when one was sent (escalations)."""
         ev = self._get_entry(evaluation_id, "evaluation")
-        return self._append("manager_alert", ev["facility_id"],
-                            {"reason": reason, "to": manager, "phone": phone, "channel": "sms", "body": body,
-                             "mode": "simulated"}, "monitor", evaluation_id=evaluation_id, day=ev["day"],
-                            posture=ev["posture"])
+        payload = {"reason": reason, "to": manager, "phone": phone, "channel": "sms", "body": body, "mode": "simulated"}
+        if push is not None:
+            payload["push"] = push
+        return self._append("manager_alert", ev["facility_id"], payload, "monitor", evaluation_id=evaluation_id,
+                            day=ev["day"], posture=ev["posture"])
 
     def outbox(self, limit: int = 200) -> list[dict]:
         """Everything the system has 'sent' (simulated): employee notices and manager alerts, newest first."""

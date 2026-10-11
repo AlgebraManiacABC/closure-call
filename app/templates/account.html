@@ -6,6 +6,64 @@
   <p class="muted">@{{ user.username }} &middot; {{ user.role }}: {{ ROLE_DESCRIPTIONS[user.role] }}.</p>
   <p class="muted small">Your actions are recorded as &ldquo;{{ user.actor }}&rdquo;.</p>
 </section>
+{% if user.role == "manager" %}
+<section class="card" id="alerts">
+  <h2>Phone alerts</h2>
+  <p class="muted">Get a notification on this device when the recommended posture gets worse (for example Open to
+    Delayed arrival, or Delay to Closed), even when the app is closed. Improvements are shown in the app only.</p>
+  {% if not push_ready %}
+    <p class="flash error">Phone alerts are not set up on this server (VAPID keys missing).</p>
+  {% else %}
+    {% if pushed is not none %}<p class="{{ 'ok' if pushed != '0' else 'bad' }}">Test alert sent to {{ pushed }} device{{ "" if pushed == "1" else "s" }}.</p>{% endif %}
+    {% for d in devices %}
+    <form method="post" action="/push/remove" class="copy-row">
+      <input type="hidden" name="sub_id" value="{{ d.id }}">
+      <span>{{ d.device }} <span class="muted small">since {{ d.created_at|t }}</span></span>
+      <button>Remove</button>
+    </form>
+    {% else %}<p class="muted small">No devices yet.</p>{% endfor %}
+    <div class="copy-row">
+      <button class="primary" id="enable-alerts" type="button">Enable alerts on this device</button>
+      {% if devices %}<form method="post" action="/push/test"><button>Send a test alert</button></form>{% endif %}
+    </div>
+    <p class="muted small" id="alerts-status"></p>
+    <p class="muted small">iPhone: first tap Share, then <b>Add to Home Screen</b>, open Closure Call from the Home
+      Screen, and enable alerts there (iOS 16.4 or later).</p>
+    <script>
+    (function () {
+      var key = "{{ vapid_public_key }}", status = document.getElementById("alerts-status");
+      function bytes(b64) {
+        var s = atob((b64 + "===".slice((b64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+        return Uint8Array.from(s, function (c) { return c.charCodeAt(0); });
+      }
+      document.getElementById("enable-alerts").addEventListener("click", async function () {
+        if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+          status.textContent = /iPhone|iPad/.test(navigator.userAgent)
+            ? "Add Closure Call to your Home Screen first, then open it from there."
+            : "This browser does not support push notifications.";
+          return;
+        }
+        try {
+          status.textContent = "Asking for permission...";
+          var reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+          if (await Notification.requestPermission() !== "granted") {
+            status.textContent = "Notifications are blocked for this site. Allow them in the browser's site settings.";
+            return;
+          }
+          var sub = await reg.pushManager.getSubscription() ||
+                    await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(key) });
+          var r = await fetch("/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" },
+                                                   body: JSON.stringify(sub) });
+          if (!r.ok) throw new Error("the server did not accept this device");
+          location.reload();
+        } catch (e) { status.textContent = "Could not enable alerts: " + e.message; }
+      });
+    })();
+    </script>
+  {% endif %}
+</section>
+{% endif %}
+
 <section class="card">
   <h2>Change password</h2>
   {% if request.query_params.get("done") %}<p class="ok">Password changed. Your other sessions are signed out.</p>{% endif %}

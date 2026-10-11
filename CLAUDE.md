@@ -354,3 +354,13 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
 - `MODEL_ACTIONS_PER_10_MIN` (default 20) caps checks and questions per user.
 - The river gauge is optional: an NWPS outage adds a note and the check continues on alerts alone.
 - The monitor's deadline reminder counts a decision on any evaluation for that day.
+- Browser push (Oct 11, `app/push.py`): Web Push with VAPID keys from `.env` (VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY, VAPID_SUBJECT; generated without being displayed). Devices subscribe on
+  /account (managers only), stored in `push_subscriptions`; 404/410 from a push service removes
+  the device. The monitor sends a real push to every active manager device only when the
+  recommendation ESCALATES (`service.severity`: open < leave option < delay or early dismissal <
+  closure; a longer delay is worse). Downgrades and deadline reminders stay in the app. Each
+  manager_alert records `push: {sent, failed, expired_removed}`. `/sw.js` is served from the
+  root (public, Service-Worker-Allowed: /). The manifest and icons in app/static make the site
+  installable, which iPhone requires for web push (Add to Home Screen, iOS 16.4+).
+  pywebpush 2.5.0 and its dependencies are pinned in constraints.txt.
