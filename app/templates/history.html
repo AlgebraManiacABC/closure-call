@@ -3,7 +3,7 @@
 {% block content %}
 <section class="card">
   <h1>Decision history</h1>
-  <p class="muted">What was known, when, and what was decided. Every entry is append-only and hash-chained.</p>
+  <p class="muted">What was known, when, and what was decided. Every entry is append-only and hash-chained. Every cutoff the rules use is listed with its source under <a href="/thresholds">Thresholds and sources</a>.</p>
   {% if verify %}
     <p class="{{ 'ok' if verify.ok else 'bad' }}"><b>Chain {{ "verified" if verify.ok else "BROKEN" }}</b>:
       {{ verify.entries }} entries, head <code>{{ verify.head[:16] }}</code>.</p>

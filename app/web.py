@@ -20,7 +20,8 @@ from fastapi.templating import Jinja2Templates
 
 from . import auth, service
 from .record import RecordError, get_store
-from .rules import HOUR
+from .facility import load_facility as load_facility_config
+from .rules import HOUR, load_thresholds
 from .sources import geocode
 from .sources.http import SourceError
 
@@ -433,6 +434,42 @@ def evaluation_page(eid: str, request: Request):
                   decision=decision, package=package["payload"]["package"] if package else None, send=send,
                   busy=service.busy(eid), bg_error=service.last_error(eid), replay=replay, tz=inputs.time_zone,
                   manager=state.manager, raw=d["evaluation"]["payload"]["raw_fetches"])
+
+
+@app.post("/e/{eid}/investigate")
+def investigate_now(eid: str, request: Request):
+    if (denied := managers_only(request, f"/e/{eid}")):
+        return denied
+    if not auth.model_actions.hit(me(request).username):
+        return back(f"/e/{eid}", "Too many checks and questions in the last 10 minutes; please wait a few minutes")
+    try:
+        service.investigate_later(store, eid)
+    except RecordError as e:
+        return back(f"/e/{eid}", str(e))
+    return back(f"/e/{eid}")
+
+
+@app.get("/thresholds", response_class=HTMLResponse)
+def thresholds_page(request: Request):
+    """Every cutoff the rules use, with its source: the brief's 'threshold defensibility' deliverable."""
+    th, version = load_thresholds()
+    groups = {}
+    for rid, r in th["field_rules"].items():
+        groups.setdefault(r["hazard"], []).append({"id": rid, "name": RULE_NAMES.get(rid, rid), "level": r["level"],
+                                                   "value": r["value"], "unit": r["unit"], "kind": r.get("kind", ""),
+                                                   "source": _fill(r["source"], th)})
+    alerts = [{"id": rid, "name": RULE_NAMES.get(rid, rid), "level": r["level"], "events": r["events"],
+               "source": _fill(r["source"], th)} for rid, r in th["alert_rules"].items()]
+    settings = {k: v for k, v in {**th["derived_fields"], **th["timing"]}.items() if isinstance(v, dict)}
+    return render(request, "thresholds.html", groups=groups, alerts=alerts, settings=settings, th=th,
+                  version=version, facility=load_facility_config())
+
+
+def _fill(text: str, th: dict) -> str:
+    values = {k: v["value"] for k, v in th["derived_fields"].items() if isinstance(v, dict) and "value" in v}
+    for k, v in values.items():
+        text = text.replace("{" + k + "}", str(v))
+    return text
 
 
 @app.get("/e/{eid}/status")

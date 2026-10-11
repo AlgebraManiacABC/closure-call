@@ -28,6 +28,8 @@ When severe weather threatens a USDA Service Center, Closure Call:
 
 The system recommends; a person decides. Plain code decides; the model investigates and explains.
 
+How each requirement of the USDA brief is met: [docs/brief-checklist.md](docs/brief-checklist.md).
+
 ## Stack
 
 - Python, FastAPI, server-rendered pages (phone-first)
@@ -52,7 +54,7 @@ Then open http://localhost:8000. `--db local` uses a SQLite file instead of the 
     python tests/test_agent_tools.py  (quote verification and what-ifs, 3)
     python tests/test_record.py       (decision record, triggers, tamper detection, 5)
     python tests/test_notify.py       (who is notified and what they are told, 7)
-    python tests/test_auth.py         (sign-in, roles, admin log, 13)
+    python tests/test_auth.py         (sign-in, roles, admin log, brief deliverables, 14)
 
 None of them need the network or the model.
 

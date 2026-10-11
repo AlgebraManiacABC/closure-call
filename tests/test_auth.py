@@ -193,6 +193,25 @@ def test_users_change_their_own_password():
     assert c.get("/history").status_code == 200  # this browser got a fresh session
 
 
+def test_brief_deliverables_are_on_the_pages():
+    from app.rules import load_thresholds
+    th, version = load_thresholds()
+    page = client("rev").get("/thresholds").text
+    assert version in page and "our assumption" in page and "10-515" in page and "10-513" in page
+    from app.web import RULE_NAMES
+    for rid in list(th["field_rules"]) + list(th["alert_rules"]):
+        assert RULE_NAMES[rid] in page, rid  # every cutoff is listed, by its plain name
+    assert "{road_recovery_hours}" not in page and "at least 3 hours" in page
+    # An evaluation the agent never investigated (e.g. a monitor run) still has a paragraph for email.
+    inp = make(gusts([6, 7], 62))
+    eid = store.record_evaluation(inp, evaluate(inp), []).id
+    mgr = client("mgr").get(f"/e/{eid}").text
+    assert 'id="rationale"' in mgr and "Written by the rules engine" in mgr and "Investigate with AI" in mgr
+    assert "Investigate with AI" not in client("rev").get(f"/e/{eid}").text
+    r = client("rev").post(f"/e/{eid}/investigate")
+    assert "error=" in r.headers["location"]
+
+
 def test_next_cannot_redirect_off_site():
     c = client()
     r = c.post("/login", data={"username": "mgr", "password": PW["mgr"], "next": "//evil.example/"})

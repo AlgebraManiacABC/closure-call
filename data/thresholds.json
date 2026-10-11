@@ -45,12 +45,12 @@
     },
     "COLD-WARN": {
       "hazard": "winter", "field": "wind_chill_f", "op": "<=", "value": -25, "unit": "F", "level": 2,
-      "source": "NWS Extreme Cold Warning (which replaced the Wind Chill Warning in 2024). Wind-chill criteria are set per office; -25 F is within the range used by central-US offices. Confirm with the local office.",
+      "source": "NWS Extreme Cold Warning, which replaced the Wind Chill Warning in 2024 (NWS Directive 10-515, non-precipitation weather products). Wind-chill criteria are set per office; -25 F is within the range used by central-US offices. Confirm with the local office.",
       "kind": "nws_criterion"
     },
     "COLD-ADV": {
       "hazard": "winter", "field": "wind_chill_f", "op": "<=", "value": -15, "unit": "F", "level": 1,
-      "source": "NWS Cold Weather Advisory (which replaced the Wind Chill Advisory in 2024). Criteria are set per office; -15 F is within the central-US range. Confirm with the local office.",
+      "source": "NWS Cold Weather Advisory, which replaced the Wind Chill Advisory in 2024 (NWS Directive 10-515). Criteria are set per office; -15 F is within the central-US range. Confirm with the local office.",
       "kind": "nws_criterion"
     },
 

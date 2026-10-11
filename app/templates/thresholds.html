@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Thresholds and sources: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Thresholds and their sources</h1>
+  <p class="muted">Every cutoff the rules engine uses, with where it comes from. NWS criteria and OPM categories are
+    cited; values that are our own choices are marked <span class="tag assumption">our assumption</span> and say what
+    would replace them. Rules version <code>{{ version }}</code>: every recorded decision stores the exact version it
+    was made under, so it can be replayed.</p>
+  <p class="small">Levels: <b>warning level</b> makes that hour hazardous for travel or operations;
+    <b>advisory level</b> offers unscheduled leave or telework.</p>
+</section>
+
+{% set hazard_names = {"wind": "High wind", "winter": "Winter weather", "flood": "Flooding"} %}
+{% for hazard, rules in groups.items() %}
+<section class="card">
+  <h2>{{ hazard_names.get(hazard, hazard) }}: forecast cutoffs</h2>
+  {% for r in rules %}
+  <div class="rule">
+    <div class="rule-head"><b>{{ r.name }}</b>
+      <span class="rule-value">{% if r.value is string and r.value.startswith("gauge:") %}the gauge's NWS {{ r.value.split(":")[1] }} stage{% else %}{{ "at or below" if "chill" in r.name.lower() else "at least" }} {{ r.value }} {{ r.unit|replace("F", "°F") }}{% endif %}</span></div>
+    <p class="small">{{ r.source }}{% if r.kind == "assumption" %} <span class="tag assumption">our assumption</span>{% endif %}</p>
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+
+<section class="card">
+  <h2>NWS alerts in effect at the facility</h2>
+  {% for a in alerts %}
+  <div class="rule">
+    <div class="rule-head"><b>{{ a.name }}</b><span class="rule-value">{{ "warning level" if a.level == 2 else "advisory level" }}</span></div>
+    <p class="small"><span class="muted">{{ a.events|join(", ") }}.</span> {{ a.source }}</p>
+  </div>
+  {% endfor %}
+  <p class="small muted">Watches ({{ th.watch_events.events|join(", ") }}) do not change the posture on their own;
+    they lower confidence and are tested as "what would change it".</p>
+</section>
+
+<section class="card">
+  <h2>Timing and road assumptions</h2>
+  {% for key, s in settings.items() %}
+  <div class="rule">
+    <div class="rule-head"><b>{{ key|replace("_", " ")|capitalize }}</b>
+      <span class="rule-value">{{ s.value if s.value is not iterable or s.value is string else s.value|join(", ") }}</span></div>
+    <p class="small">{{ s.source }}{% if s.kind == "assumption" %} <span class="tag assumption">our assumption</span>{% elif s.kind == "policy" %} <span class="tag">policy</span>{% endif %}</p>
+  </div>
+  {% endfor %}
+  <div class="rule">
+    <div class="rule-head"><b>Announce delays and closures by</b><span class="rule-value">{{ facility.delay_or_closure_by.strftime("%H:%M") }} local</span></div>
+    <p class="small">OPM aims to announce Washington-area delays and closures by about 4 AM; we allow until 5 AM local for a field office.
+      Outside Washington, the local agency head makes the call.</p>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Postures</h2>
+  <ul class="small">
+    {% for k, v in th.postures.items() if not k.startswith("_") %}<li><b>{{ POSTURE_NAMES[k] }}</b>: &ldquo;{{ v.replace("{hours}", "N").replace("{time}", "HH:MM") }}&rdquo;</li>{% endfor %}
+  </ul>
+  <p class="small muted">{{ th.postures._source }}</p>
+</section>
+{% endblock %}

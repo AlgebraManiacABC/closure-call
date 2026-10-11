@@ -149,6 +149,16 @@ form.search input { flex: 1; min-width: 0; }
   main { max-width: 900px; }
 }
 
+/* Thresholds page */
+.table-scroll { overflow-x: auto; }
+td.nowrap, .nowrap { white-space: nowrap; }
+.tag.assumption { background: #fff4e0; color: #8a5a00; }
+.rule { border-top: 1px solid var(--line); padding: 10px 0; }
+.rule-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; }
+.rule-value { font-weight: 600; color: var(--usda); }
+.rule p { margin: 4px 0 0; }
+.copy-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+
 /* Sign-in */
 .signin { max-width: 420px; margin: 24px auto; }
 button.signout { padding: 2px 10px; font-size: .85rem; border-radius: 12px; background: transparent;

@@ -118,6 +118,15 @@ def check(store: Store, facility: Facility, day: date, actor: str = "system", ba
     return eid
 
 
+def investigate_later(store: Store, eid: str):
+    """Run the agent for an evaluation that has no report yet (e.g. a monitor run, or a failed attempt)."""
+    if "agent" in busy(eid):
+        return
+    d = store.load(eid)
+    _errors.pop(eid, None)
+    _run_bg(eid, "agent", lambda: store.record_agent_report(eid, *investigate(d["inputs"], d["recommendation"])))
+
+
 def ask(store: Store, eid: str, question: str, asked_by: str) -> str:
     d = store.load(eid)
     answer = answer_question(d["inputs"], d["recommendation"], d["agent_report"], question)

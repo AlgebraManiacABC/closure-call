@@ -108,11 +108,33 @@
     </ul>
   </details>
 
-  {% if report %}
+  {% set agent_wrote = report and report.ran %}
   <details class="more"><summary>Full explanation (for email)</summary>
-    <p class="rationale">{{ report.rationale }}</p>
-    {% if not report.ran %}<p class="muted small">{{ report.reason }}</p>{% endif %}
+    <p class="rationale" id="rationale">{{ report.rationale if agent_wrote else rec.summary|friendly }}</p>
+    <div class="copy-row">
+      <button type="button" id="copy-rationale">Copy paragraph</button>
+      <span class="muted small" id="copy-status"></span>
+    </div>
+    {% if not agent_wrote %}
+      <p class="muted small">Written by the rules engine{% if report %} ({{ report.reason }}){% endif %}.</p>
+      {% if manager_view and rec.posture != "normal" and "agent" not in busy %}
+      <form method="post" action="/e/{{ eid }}/investigate"><button>Investigate with AI and explain</button></form>
+      {% endif %}
+    {% endif %}
   </details>
+  <script>
+  document.getElementById("copy-rationale").addEventListener("click", function () {
+    var text = document.getElementById("rationale").innerText, status = document.getElementById("copy-status");
+    function selectIt() {
+      var r = document.createRange(); r.selectNodeContents(document.getElementById("rationale"));
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); status.textContent = "Selected: press Ctrl+C";
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function () { status.textContent = "Copied"; }, selectIt);
+    } else { selectIt(); }
+  });
+  </script>
+  {% if report %}
   {% if report.caveats %}
   <details class="more"><summary>Caveats ({{ report.caveats|length }})</summary>
     <ul>{% for c in report.caveats %}<li>{{ c }}</li>{% endfor %}</ul></details>
@@ -221,7 +243,7 @@
 <!-- 6. Evidence and record, closed by default -->
 <section class="card">
   <details class="more"><summary>All threshold checks ({{ rec.checks|selectattr("peak", "ne", none)|list|length }})</summary>
-    <p class="muted small">The worst forecast value during commuting and working hours, against each cutoff. Tap a row for where the cutoff comes from.</p>
+    <p class="muted small">The worst forecast value during commuting and working hours, against each cutoff. Tap a row for where the cutoff comes from, or see <a href="/thresholds">all thresholds and sources</a>.</p>
     <table class="checks">
       <tr><th>What we check</th><th>Worst forecast</th><th>Cutoff</th><th>Result</th></tr>
       {% for c in rec.checks if c.peak is not none %}
