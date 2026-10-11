@@ -11,7 +11,7 @@
     <b>advisory level</b> offers unscheduled leave or telework.</p>
 </section>
 
-{% set hazard_names = {"wind": "High wind", "winter": "Winter weather", "flood": "Flooding"} %}
+{% set hazard_names = {"wind": "High wind", "winter": "Winter weather", "flood": "Flooding", "tropical": "Hurricanes and tropical storms"} %}
 {% for hazard, rules in groups.items() %}
 <section class="card">
   <h2>{{ hazard_names.get(hazard, hazard) }}: forecast cutoffs</h2>
@@ -28,6 +28,7 @@
 <section class="card">
   <h2>NWS alerts in effect at the facility</h2>
   {% for a in alerts %}
+  {% if loop.first or a.hazard != loop.previtem.hazard %}<div class="count" style="margin-top:10px">{{ hazard_names.get(a.hazard, a.hazard) }}</div>{% endif %}
   <div class="rule">
     <div class="rule-head"><b>{{ a.name }}</b><span class="rule-value">{{ "warning level" if a.level == 2 else "advisory level" }}</span></div>
     <p class="small"><span class="muted">{{ a.events|join(", ") }}.</span> {{ a.source }}</p>

@@ -424,7 +424,7 @@ def evaluate(inputs: Inputs, thresholds: dict | None = None, rules_version: str 
                             peak_hour=peak_hour, margin=m, crossed=m is not None and m >= 0,
                             threshold_source=_source(rule, th)))
 
-    hazards = ("flood", "wind", "winter")
+    hazards = ("flood", "wind", "winter", "tropical")
     hourly = [{"start": rows[i]["start"], "level": level[i],
                "hazards": sorted({f.hazard for f in per_hour[i] if f.level == level[i] and level[i] > 0})}
               for i in in_window]

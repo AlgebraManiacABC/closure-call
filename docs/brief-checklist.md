@@ -28,7 +28,7 @@ in this repo.
 | At least one supplementary signal | River gauges: NOAA NWPS (official flood stages, crest forecast, NWS impact statements naming affected roads) and USGS readings as a cross-check. |
 | A graded recommendation, not a binary | Five postures, chosen by timing as well as severity (a morning hazard that clears gives a delay; one arriving mid-day gives an early dismissal). |
 | Right people, right channel, right time, right content | See deliverable 3; delays and closures must be announced by 5 AM local. |
-| One facility profile and two or three hazards, done well | One USDA Service Center; flooding, high wind and winter weather. |
+| One facility profile and two or three hazards, done well | One USDA Service Center; flooding, high wind and winter weather, plus hurricanes and tropical storms as their own category (they arrive as wind and storm surge together). |
 | The system recommends; a person decides | A manager approves or overrides (with a written reason) before anything is sent; sending is simulated. |
 
 ## Known limits to mention if asked

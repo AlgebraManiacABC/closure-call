@@ -144,6 +144,10 @@ form.search { display: flex; gap: 8px; }
 form.search input { flex: 1; min-width: 0; }
 #map { height: 360px; border-radius: 10px; border: 1px solid var(--line); margin: 8px 0; }
 .dot.flood { background: #2b6cb0; } .dot.wind { background: #c05621; } .dot.winter { background: #6b46c1; }
+.dot.tropical { background: #b42318; }
+.hz { display: inline-block; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 6px; border-radius: 8px; vertical-align: 2px; margin-right: 4px; color: #fff; background: #5d6762; }
+.hz-flood { background: #2b6cb0; } .hz-wind { background: #c05621; } .hz-winter { background: #6b46c1; } .hz-tropical { background: #b42318; }
 
 @media (min-width: 900px) {
   main { max-width: 900px; }

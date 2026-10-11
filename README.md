@@ -50,7 +50,7 @@ Then open http://localhost:8000. `--db local` uses a SQLite file instead of the 
 
 ## Tests
 
-    python tests/test_rules.py        (rules engine, 10)
+    python tests/test_rules.py        (rules engine, 12)
     python tests/test_agent_tools.py  (quote verification and what-ifs, 3)
     python tests/test_record.py       (decision record, triggers, tamper detection, 5)
     python tests/test_notify.py       (who is notified and what they are told, 7)

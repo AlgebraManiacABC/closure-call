@@ -12,7 +12,10 @@ BASE = "https://api.weather.gov"
 HAZARD_EVENTS = {
     "flood": {"Flash Flood Warning", "Flood Warning", "Flood Watch", "Flood Advisory",
               "Flash Flood Watch", "Hydrologic Outlook"},
-    "wind": {"High Wind Warning", "High Wind Watch", "Wind Advisory", "Extreme Wind Warning"},
+    "wind": {"High Wind Warning", "High Wind Watch", "Wind Advisory"},
+    # Hurricanes and tropical storms are their own category: they bring wind, surge and flooding together.
+    "tropical": {"Hurricane Warning", "Hurricane Watch", "Tropical Storm Warning", "Tropical Storm Watch",
+                 "Storm Surge Warning", "Storm Surge Watch", "Extreme Wind Warning"},
     "winter": {"Blizzard Warning", "Ice Storm Warning", "Winter Storm Warning", "Winter Storm Watch",
                "Winter Weather Advisory", "Wind Chill Warning", "Wind Chill Advisory",
                "Extreme Cold Warning", "Cold Weather Advisory"},

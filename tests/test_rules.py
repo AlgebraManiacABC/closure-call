@@ -94,6 +94,27 @@ def test_flood_gauge_near_major_reports_exact_tipping_point():
     assert any(c.posture == "closure" and "+0.11" in c.what for c in r.what_would_change)
 
 
+def _alert(event, certainty="Likely"):
+    from app.sources.nws import EVENT_HAZARD
+    return AlertIn(id=event, event=event, hazard=EVENT_HAZARD[event], severity="Extreme", certainty=certainty,
+                   urgency="Expected", starts=datetime(2026, 10, 12, 18, tzinfo=TZ), ends=None, headline="", sender="")
+
+
+def test_hurricane_warning_is_its_own_tropical_category():
+    r = evaluate(make(alerts=[_alert("Hurricane Warning")]))
+    assert r.posture == "closure"
+    assert r.decisive[0].hazard == "tropical" and r.decisive[0].rule_id == "TROPICAL-HURRICANE-WARN"
+    assert r.hazard_peak_levels["tropical"] == 2 and r.hazard_peak_levels["wind"] == 0  # not swept into wind
+    surge = evaluate(make(alerts=[_alert("Storm Surge Warning")]))
+    assert surge.posture == "closure" and surge.decisive[0].rule_id == "TROPICAL-SURGE-WARN"
+
+
+def test_hurricane_watch_is_a_watch_that_would_close_if_upgraded():
+    r = evaluate(make(alerts=[_alert("Hurricane Watch", certainty="Possible")]))
+    assert r.posture == "normal" and r.confidence == "medium" and r.watches[0].event == "Hurricane Watch"
+    assert any("upgraded to Hurricane Warning" in c.what and c.posture == "closure" for c in r.what_would_change)
+
+
 def test_identical_inputs_give_identical_output():
     inp = make(gusts([15, 16], 60))
     again = Inputs.model_validate_json(inp.model_dump_json())

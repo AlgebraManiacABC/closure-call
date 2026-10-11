@@ -83,6 +83,8 @@ RULE_NAMES = {  # display names only; records keep the rule ids so replays match
     "WINTER-ALERT-WARN": "NWS winter storm, blizzard or ice storm warning", "WINTER-ALERT-ADV": "NWS winter weather advisory",
     "COLD-ALERT-WARN": "NWS extreme cold warning", "COLD-ALERT-ADV": "NWS cold weather advisory",
     "FLOOD-ALERT-FFW": "NWS flash flood warning", "FLOOD-ALERT-WARN": "NWS flood warning or advisory",
+    "TROPICAL-HURRICANE-WARN": "NWS hurricane or extreme wind warning", "TROPICAL-STORM-WARN": "NWS tropical storm warning",
+    "TROPICAL-SURGE-WARN": "NWS storm surge warning",
     "TIME-DELAY": "Delay past the hazard", "TIME-CLOSE-PERSISTS": "Hazard lasts too long for a delay",
     "TIME-CLOSE-EARLY-HAZARD": "Hazard arrives before noon", "TIME-EARLY-DISMISS": "Dismiss before the hazard",
 }
@@ -121,10 +123,11 @@ def reason_rows(findings, inputs, evidence) -> list[dict]:
     for f in findings:
         if f.kind == "alert":
             row = {"title": f"NWS {f.alert_event}", "sub": f"NWS rates it {f.alert_certainty.lower()}",
+                   "hazard": f.hazard,
                    "quotes": [e for e in evidence if e.alert_id == f.alert_id], "alert_id": f.alert_id}
         else:
             level = LEVEL_NAMES.get(f.rule_id, "warning level" if f.level == 2 else "advisory level")
-            row = {"title": FIELD_TITLES.get(f.field, f.rule_id).format(v=f.value),
+            row = {"title": FIELD_TITLES.get(f.field, f.rule_id).format(v=f.value), "hazard": f.hazard,
                    "sub": f"{level} is {f.threshold:g} {f.unit.split()[0]}, so {abs(f.margin):g} "
                           f"{'over' if f.margin >= 0 else 'under'}", "quotes": [], "alert_id": None}
         src = inputs.sources[f.source_key]
@@ -388,7 +391,8 @@ def manager_home(request: Request):
                   next_day=f.next_operating_day(), tomorrow=today + timedelta(days=1), today=today)
 
 
-HAZARD_NAMES = {"flood": "Flooding", "wind": "High wind", "winter": "Winter weather"}
+HAZARD_NAMES = {"flood": "Flooding", "wind": "High wind", "winter": "Winter weather",
+                "tropical": "Hurricanes and tropical storms"}
 
 
 @app.get("/locations", response_class=HTMLResponse)
@@ -492,7 +496,7 @@ def thresholds_page(request: Request):
         groups.setdefault(r["hazard"], []).append({"id": rid, "name": RULE_NAMES.get(rid, rid), "level": r["level"],
                                                    "value": r["value"], "unit": r["unit"], "kind": r.get("kind", ""),
                                                    "source": _fill(r["source"], th)})
-    alerts = [{"id": rid, "name": RULE_NAMES.get(rid, rid), "level": r["level"], "events": r["events"],
+    alerts = [{"id": rid, "name": RULE_NAMES.get(rid, rid), "level": r["level"], "events": r["events"], "hazard": r["hazard"],
                "source": _fill(r["source"], th)} for rid, r in th["alert_rules"].items()]
     settings = {k: v for k, v in {**th["derived_fields"], **th["timing"]}.items() if isinstance(v, dict)}
     return render(request, "thresholds.html", groups=groups, alerts=alerts, settings=settings, th=th,

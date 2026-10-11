@@ -68,7 +68,7 @@
   <div class="count">{{ reasons|length }} reason{{ "s" if reasons|length != 1 }}{% if not reasons %}: nothing crossed a threshold{% endif %}</div>
   {% for r in reasons %}
   <details class="reason">
-    <summary><span class="r-title">{{ r.title }}</span>
+    <summary><span class="r-title"><span class="hz hz-{{ r.hazard }}">{{ r.hazard }}</span> {{ r.title }}</span>
       <span class="r-when">{{ r.f.first_hour|t(tz, "%a %I %p") }}&ndash;{{ (r.f.last_hour + HOUR)|t(tz, "%I %p") }}</span></summary>
     <div class="r-body">
       <p>{{ r.sub }}.</p>

@@ -368,3 +368,10 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   opens straight on the reason count and rows (plain code, instant); the model's parts (email
   paragraph, caveats, quotes, tested what-ifs) fill in below when it finishes. `AgentReport.headline`
   stays as an optional field so older records still load.
+- Tropical is a fourth hazard category (Oct 11): Hurricane Warning and Extreme Wind Warning
+  (moved out of wind), Tropical Storm Warning, and Storm Surge Warning are warning level and
+  extended by road recovery. Hurricane, Tropical Storm and Storm Surge Watches are watches that
+  upgrade to their warnings. Sources are the NHC/NWS product definitions in thresholds.json.
+  Reason rows carry a hazard tag (flood/wind/winter/tropical); hotspots and the map have a
+  tropical group; storm surge triggers the flood-prone commute note. On Oct 11 no tropical
+  alerts were active in the US, so this is tested only with synthetic alerts.

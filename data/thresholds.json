@@ -68,7 +68,7 @@
 
   "alert_rules": {
     "WIND-ALERT-WARN": {
-      "hazard": "wind", "events": ["High Wind Warning", "Extreme Wind Warning"], "level": 2,
+      "hazard": "wind", "events": ["High Wind Warning"], "level": 2,
       "source": "NWS has judged warning-level wind likely or occurring for this area."
     },
     "WIND-ALERT-ADV": {
@@ -100,16 +100,34 @@
     "FLOOD-ALERT-WARN": {
       "hazard": "flood", "events": ["Flood Warning", "Flood Advisory"], "level": 1,
       "source": "NWS has issued a Flood Warning or Flood Advisory covering the facility location."
+    },
+    "TROPICAL-HURRICANE-WARN": {
+      "hazard": "tropical", "events": ["Hurricane Warning", "Extreme Wind Warning"], "level": 2,
+      "extend_by_road_recovery": true,
+      "source": "NHC/NWS Hurricane Warning: hurricane conditions (sustained winds of 74 mph or more) are expected in the area, issued about 36 hours before tropical-storm-force winds arrive. Extreme Wind Warning: sustained winds of a major hurricane (115 mph or more) within the hour. Roads stay blocked by debris for at least {road_recovery_hours} hours after it ends."
+    },
+    "TROPICAL-STORM-WARN": {
+      "hazard": "tropical", "events": ["Tropical Storm Warning"], "level": 2,
+      "extend_by_road_recovery": true,
+      "source": "NHC/NWS Tropical Storm Warning: tropical storm conditions (sustained winds of 39 to 73 mph) are expected in the area within 36 hours, the same range as NWS high-wind warning criteria."
+    },
+    "TROPICAL-SURGE-WARN": {
+      "hazard": "tropical", "events": ["Storm Surge Warning"], "level": 2,
+      "extend_by_road_recovery": true,
+      "source": "NHC/NWS Storm Surge Warning: danger of life-threatening inundation from rising water moving inland from the coastline, generally within 36 hours. Flooded coastal roads are the main commuting risk."
     }
   },
 
   "watch_events": {
     "_about": "Watches mean warning-level conditions are possible. They do not move the posture on their own, but they lower confidence and are listed as what could change the recommendation.",
-    "events": ["High Wind Watch", "Winter Storm Watch", "Flood Watch", "Flash Flood Watch", "Extreme Cold Watch", "Wind Chill Watch"],
+    "events": ["High Wind Watch", "Winter Storm Watch", "Flood Watch", "Flash Flood Watch", "Extreme Cold Watch", "Wind Chill Watch",
+               "Hurricane Watch", "Tropical Storm Watch", "Storm Surge Watch"],
     "upgrades_to": {
       "High Wind Watch": "High Wind Warning", "Winter Storm Watch": "Winter Storm Warning",
       "Flood Watch": "Flood Warning", "Flash Flood Watch": "Flash Flood Warning",
-      "Extreme Cold Watch": "Extreme Cold Warning", "Wind Chill Watch": "Wind Chill Warning"
+      "Extreme Cold Watch": "Extreme Cold Warning", "Wind Chill Watch": "Wind Chill Warning",
+      "Hurricane Watch": "Hurricane Warning", "Tropical Storm Watch": "Tropical Storm Warning",
+      "Storm Surge Watch": "Storm Surge Warning"
     }
   },
 

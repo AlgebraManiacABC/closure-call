@@ -124,7 +124,8 @@ def reason_phrase(inputs: Inputs, rec: Recommendation) -> str:
             return f"an NWS {f.alert_event}"
         if f.hazard == "flood" and inputs.gauge:
             return f"flooding on the {inputs.gauge.name}"
-        return {"wind": "high winds", "winter": "snow and ice", "flood": "flooding"}.get(f.hazard, "severe weather")
+        return {"wind": "high winds", "winter": "snow and ice", "flood": "flooding",
+                "tropical": "a tropical storm"}.get(f.hazard, "severe weather")
     return "severe weather"
 
 
@@ -202,7 +203,7 @@ def personal_notes(s: DayStatus, d: Decided, hazards: set[str], leave_option: bo
             and s.location == "office":
         notes.append(f"Your shift normally starts at {clock(e.shift_start)}, so your delayed start is "
                      f"{clock(add_hours(e.shift_start, d.delay_hours))}.")
-    if e.commute_flood_prone and "flood" in hazards and s.location == "office":
+    if e.commute_flood_prone and ({"flood", "tropical"} & hazards) and s.location == "office":
         notes.append("Your usual route crosses flood-prone roads. Never drive through flooded roads (Turn Around, "
                      "Don't Drown)" + ("; use unscheduled leave or telework if your route is affected." if leave_option
                                        else "; call your supervisor if your route is affected."))
