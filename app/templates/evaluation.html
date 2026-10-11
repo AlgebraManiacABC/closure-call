@@ -39,10 +39,19 @@
 {% set manager_view = role == "manager" %}
 
 <!-- 1. The answer -->
-<section class="posture-card {{ rec.posture }}">
+{# Before a decision the card shows the recommendation; after it, the decision itself. #}
+{% set shown_posture = decision.payload.posture if decision else rec.posture %}
+{% set shown_opm = decision.payload.posture_label if decision else rec.posture_label %}
+{% set shown_short = decided_short if decision else short %}
+<section class="posture-card {{ shown_posture }}">
   <div class="eyebrow">{{ inputs.day.strftime("%A %b %d") }} &middot; {{ inputs.facility_label }}</div>
-  <div class="posture-label"><span class="posture-prefix">Recommendation: </span>{{ short }}</div>
-  <div class="posture-opm">{{ rec.posture_label }}</div>
+  {% if decision %}
+  <div class="posture-label"><span class="posture-prefix">{{ "Approved" if decision.payload.action == "approve" else "Decided" }}: </span>{{ shown_short }}</div>
+  {% else %}
+  <div class="posture-label"><span class="posture-prefix">Recommendation: </span>{{ shown_short }}</div>
+  {% endif %}
+  {% if shown_opm != shown_short %}<div class="posture-opm">{{ shown_opm }}</div>{% endif %}
+  {% if decision %}<div class="posture-meta">by {{ decision.actor }} &middot; {{ decision.at|t(tz, "%a %I:%M %p") }}</div>{% endif %}
   <div class="chips">
     <details class="chip"><summary>Confidence: {{ rec.confidence }}</summary>
       <ul>{% for r in rec.confidence_reasons %}<li>{{ r|friendly }}</li>{% endfor %}</ul></details>
@@ -51,11 +60,10 @@
   {% if inputs.notes %}<div class="posture-note">{{ inputs.notes|join(" ") }}</div>{% endif %}
 </section>
 
-{% if decision %}
-<section class="decision-banner {{ decision.payload.action }}">
-  <b>{{ DID[decision.payload.action] }}: {{ decided_short }}</b>
-  <span class="small">&middot; {{ decision.actor }}, {{ decision.at|t(tz, "%a %I:%M %p") }}</span>
-  {% if decision.payload.reason %}<details><summary>Reason given</summary>&ldquo;{{ decision.payload.reason }}&rdquo;</details>{% endif %}
+{% if decision and decision.payload.action == "override" %}
+<section class="decision-banner override">
+  <b>This was counter to the recommendation: {{ short }}</b>
+  {% if decision.payload.reason %}<div class="small">Reason given: &ldquo;{{ decision.payload.reason }}&rdquo;</div>{% endif %}
 </section>
 {% endif %}
 
