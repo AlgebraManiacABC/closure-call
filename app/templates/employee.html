@@ -27,10 +27,9 @@
     <label class="check"><input type="checkbox" name="telework_eligible" {{ "checked" if e.telework_eligible }}> Telework-ready</label>
     <div><div class="small muted">Scheduled telework days</div>
       <div class="checkrow">{% for w in WEEKDAYS[:5] %}<label><input type="checkbox" name="telework_days" value="{{ w }}" {{ "checked" if e.telework_days and w in e.telework_days }}> {{ w }}</label>{% endfor %}</div></div>
-    <div class="pair">
-      <label>Commute (miles) <input type="number" min="0" name="commute_miles" value="{{ e.commute_miles or 0 }}"></label>
-      <label class="check"><input type="checkbox" name="commute_flood_prone" {{ "checked" if e.commute_flood_prone }}> Commute crosses flood-prone roads</label>
-    </div>
+    <label class="check"><input type="checkbox" name="commute_flood_prone" {{ "checked" if e.commute_flood_prone }}>
+      Has said their commute crosses roads that flood</label>
+    <p class="muted small">If checked, their notice adds a &ldquo;Turn Around, Don't Drown&rdquo; reminder when a flood or storm surge is the reason.</p>
     <label>Notes <input name="notes" value="{{ e.notes or '' }}"></label>
     <details class="more"><summary>Leave, detail and accessibility (JSON)</summary>
       <p class="muted small">planned_leave: a list of {"start", "end"} dates. detail: null, or {"location", "start", "end"}.
