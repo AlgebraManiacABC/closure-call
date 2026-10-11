@@ -457,13 +457,12 @@ def evaluation_page(eid: str, request: Request):
     also = reason_rows([f for f in rec.findings if (f.rule_id, f.alert_id) not in decisive_keys], inputs, evidence)
     shown_alerts = {r["alert_id"] for r in reasons + also}
     other_quotes = [e for e in evidence if e.alert_id not in shown_alerts]
-    headline = (report.headline if report and report.headline else rec.timing_explanation)
     decided = None
     if decision:
         p = decision["payload"]
         decided = short_posture(p["posture"], p.get("delay_hours"), p.get("dismissal_time"), inputs.time_zone)
     return render(request, "evaluation.html", eid=eid, d=d, inputs=inputs, rec=rec, report=report,
-                  reasons=reasons, also=also, other_quotes=other_quotes, headline=headline,
+                  reasons=reasons, also=also, other_quotes=other_quotes,
                   short=short_posture(rec.posture, rec.delay_hours, rec.dismissal_time, inputs.time_zone),
                   decided_short=decided,
                   decision=decision, package=package["payload"]["package"] if package else None, send=send,

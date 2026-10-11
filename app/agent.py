@@ -57,7 +57,6 @@ class WhatIf(BaseModel):
 
 class Briefing(BaseModel):
     """What the model returns at the end of an investigation."""
-    headline: str  # one plain sentence, at most 20 words, read first
     rationale: str
     caveats: list[str]
 
@@ -66,7 +65,7 @@ class AgentReport(BaseModel):
     ran: bool
     reason: str  # why it did not run, or "ok"
     rationale: str
-    headline: str = ""
+    headline: str = ""  # no longer generated (the posture card is the headline); kept so old records load
     caveats: list[str] = []
     evidence: list[Evidence] = []
     rejected_quotes: list[str] = []
@@ -182,8 +181,6 @@ Rules:
   inside that alert's area. Never say it is outside a listed alert. Use only the county the briefing names.
 - Keep tool use short: read each alert once, at most 2 lookups, at most 3 what_if calls.
 
-The headline is ONE plain sentence of at most 20 words that a busy manager reads first, e.g.
-"A Winter Storm Warning covers the morning commute, so the office should close."
 Write times as 6 AM or 1:30 PM, never 18:00.
 The final rationale is ONE paragraph of at most 120 words a manager could paste into an email:
 state the posture, the main reason with its source (NWS alert, forecast or river gauge), the timing,
@@ -391,8 +388,7 @@ def investigate(inputs: Inputs, rec: Recommendation, force: bool = False) -> tup
             raise RuntimeError(f"no structured output (stop reason {result.stop_reason})")
         usage = dict(result.metrics.accumulated_usage)
         return inv.report(True, "ok", b.rationale.strip(), b.caveats[:3], started,
-                          model=os.environ.get("CHAT_MODEL", ""), tokens=usage,
-                          headline=b.headline.strip()), inv.fetched
+                          model=os.environ.get("CHAT_MODEL", ""), tokens=usage), inv.fetched
     except Exception as e:  # the decision page must still work without the model
         return inv.report(False, f"Agent failed: {type(e).__name__}: {e}"[:300], rec.summary, [], started), inv.fetched
 

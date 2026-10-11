@@ -364,3 +364,7 @@ Verified Oct 10 (clients in `app/sources/`, check with `scripts/check_sources.py
   root (public, Service-Worker-Allowed: /). The manifest and icons in app/static make the site
   installable, which iPhone requires for web push (Add to Home Screen, iOS 16.4+).
   pywebpush 2.5.0 and its dependencies are pinned in constraints.txt.
+- The agent no longer writes a headline sentence (Oct 11): the posture card is the headline. "Why"
+  opens straight on the reason count and rows (plain code, instant); the model's parts (email
+  paragraph, caveats, quotes, tested what-ifs) fill in below when it finishes. `AgentReport.headline`
+  stays as an optional field so older records still load.

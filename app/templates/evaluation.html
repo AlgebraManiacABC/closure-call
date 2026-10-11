@@ -64,8 +64,6 @@
 <!-- 2. Why: one sentence, then one button per reason -->
 <section class="card">
   <h2>Why</h2>
-  {% if "agent" in busy and not report %}<p class="working">Reading the NWS alert text and testing what-ifs&hellip;</p>{% endif %}
-  <p class="headline">{{ headline }}</p>
 
   <div class="count">{{ reasons|length }} reason{{ "s" if reasons|length != 1 }}{% if not reasons %}: nothing crossed a threshold{% endif %}</div>
   {% for r in reasons %}
@@ -91,6 +89,10 @@
     {% for h in rec.hourly_levels %}<div class="hour l{{ h.level }}"><span>{{ h.start|t(tz, "%I%p")|lower }}</span></div>{% endfor %}
   </div>
   <div class="legend"><span class="hour l0"></span>clear <span class="hour l1"></span>advisory <span class="hour l2"></span>warning</div>
+
+  {% if "agent" in busy and not report %}
+  <p class="working">AI is reading the NWS alert text and testing what-ifs. The explanation, caveats and quotes appear here when it finishes.</p>
+  {% endif %}
 
   {% if also %}
   <details class="more"><summary>Also noted ({{ also|length }}), not deciding</summary>
