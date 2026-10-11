@@ -36,6 +36,13 @@ form.stack { display: grid; gap: 10px; }
 form.inline { margin-top: 8px; }
 label { display: grid; gap: 4px; font-size: .9rem; color: var(--muted); }
 input, select, textarea { font: inherit; padding: 9px; border: 1px solid var(--line); border-radius: 8px; width: 100%; color: var(--ink); background: #fff; }
+input[type=checkbox] { width: auto; }
+.checkrow { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.checkrow label, label.check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 10px; }
+.row-link { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.row-link .r-when { color: var(--muted); font-size: .85rem; text-align: right; }
 details { margin: 8px 0; }
 summary { cursor: pointer; color: var(--accent); }
 

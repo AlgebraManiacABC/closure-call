@@ -4,6 +4,7 @@ Run locally:   python scripts/serve.py --db local
 Every page needs a signed-in account (see app/auth.py and scripts/users.py); managers can act,
 reviewers can read, verify, replay and ask. Each ledger entry records who did it.
 """
+import json
 import logging
 import os
 import re
@@ -21,7 +22,10 @@ from fastapi.templating import Jinja2Templates
 from . import auth, service
 from . import push as push_mod
 from .record import RecordError, get_store
+from .facility import WEEKDAYS, facility_data, roster_data
 from .facility import load_facility as load_facility_config
+from .facility import load_roster as load_roster_config
+from .organization import Organization, OrgError
 from .rules import HOUR, load_thresholds
 from .sources import geocode
 from .sources.http import SourceError
@@ -32,6 +36,7 @@ app = FastAPI(title="Closure Call")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 store = get_store(os.environ.get("DB") or None)
+org = Organization(store.engine, store.audit)  # load saved staff and facility edits before anything reads them
 state = service.AppState()
 state.restore(store)  # survive restarts and redeploys at the last evaluated location
 accounts = auth.Accounts(store.engine, store.audit)
@@ -620,6 +625,81 @@ def raw(fetch_id: str):
         return JSONResponse(store.raw_body(fetch_id))
     except RecordError as e:
         return JSONResponse({"error": str(e)}, status_code=404)
+
+
+# ---------- staff and facility ----------
+
+def org_editors_only(request: Request) -> RedirectResponse | None:
+    u = me(request)
+    return None if (u.is_manager or u.is_sysadmin) else back("/organization", "Only a manager or sysadmin can edit this")
+
+
+def _form_dict(form) -> dict:
+    multi = ("operating_days", "telework_days")
+    return {k: (form.getlist(k) if k in multi else form.get(k)) for k in form.keys()}
+
+
+def _refresh_state():
+    state.facility = load_facility_config().repinned(state.facility.pin)  # keep the current location
+    state.roster = load_roster_config()
+
+
+@app.get("/organization", response_class=HTMLResponse)
+def organization_page(request: Request):
+    u = me(request)
+    return render(request, "organization.html", fac=facility_data(), roster=roster_data()["employees"],
+                  updated=org.updated(), can_edit=u.is_manager or u.is_sysadmin, WEEKDAYS=WEEKDAYS,
+                  tz=state.facility.pin.time_zone)
+
+
+@app.post("/organization/facility")
+async def organization_facility(request: Request):
+    if (denied := org_editors_only(request)):
+        return denied
+    try:
+        org.save_facility(_form_dict(await request.form()), me(request).actor)
+    except OrgError as e:
+        return back("/organization#facility", str(e))
+    _refresh_state()
+    return back("/organization?saved=facility#facility")
+
+
+@app.get("/organization/employee/{emp_id}", response_class=HTMLResponse)
+def employee_page(emp_id: str, request: Request):
+    emps = roster_data()["employees"]
+    e = next((x for x in emps if x["id"] == emp_id), None)
+    if e is None and emp_id != "new":
+        return back("/organization#roster", "No such employee")
+    u = me(request)
+    advanced = json.dumps({k: (e or {}).get(k, [] if k != "detail" else None)
+                           for k in ("detail", "planned_leave", "accessibility_needs")}, indent=2)
+    return render(request, "employee.html", e=e or {}, emp_id=emp_id, advanced=advanced, WEEKDAYS=WEEKDAYS,
+                  is_manager_person=emp_id == facility_data()["manager_employee_id"],
+                  can_edit=u.is_manager or u.is_sysadmin)
+
+
+@app.post("/organization/employee/{emp_id}")
+async def employee_save(emp_id: str, request: Request):
+    if (denied := org_editors_only(request)):
+        return denied
+    try:
+        new_id = org.save_employee(emp_id, _form_dict(await request.form()), me(request).actor)
+    except OrgError as e:
+        return back(f"/organization/employee/{emp_id}", str(e))
+    _refresh_state()
+    return back(f"/organization?saved={new_id}#roster")
+
+
+@app.post("/organization/employee/{emp_id}/remove")
+def employee_remove(emp_id: str, request: Request):
+    if (denied := org_editors_only(request)):
+        return denied
+    try:
+        org.remove_employee(emp_id, me(request).actor)
+    except OrgError as e:
+        return back(f"/organization/employee/{emp_id}", str(e))
+    _refresh_state()
+    return back("/organization#roster")
 
 
 @app.get("/healthz")

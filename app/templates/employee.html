@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ e.name or "New employee" }}: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <p><a href="/organization#roster">&larr; Staff and facility</a></p>
+  <h1>{{ e.name or "New employee" }}</h1>
+  {% if e.id %}<p class="muted small">{{ e.id }}{% if is_manager_person %} &middot; facility manager, named in every notice as the contact{% endif %}</p>{% endif %}
+  <form method="post" action="/organization/employee/{{ emp_id }}" class="stack">
+    <fieldset {{ "disabled" if not can_edit }} class="stack plain">
+    <label>Name <input name="name" value="{{ e.name or '' }}" required></label>
+    <label>Title <input name="title" value="{{ e.title or '' }}"></label>
+    <label>Agency <input name="agency" value="{{ e.agency or '' }}"></label>
+    <div class="pair">
+      <label>Phone <input name="phone" type="tel" value="{{ e.contact.phone if e.contact else '' }}" required></label>
+      <label>Email <input name="email" type="email" value="{{ e.contact.email if e.contact else '' }}" required></label>
+    </div>
+    <label>Preferred channel (used when a notice is not urgent)
+      <select name="preferred">
+        <option value="sms" {{ "selected" if not e.contact or e.contact.preferred == "sms" }}>Text message</option>
+        <option value="email" {{ "selected" if e.contact and e.contact.preferred == "email" }}>Email</option>
+      </select></label>
+    <div class="pair">
+      <label>Shift starts <input type="time" name="shift_start" value="{{ e.shift.start if e.shift else '08:00' }}" required></label>
+      <label>Shift ends <input type="time" name="shift_end" value="{{ e.shift.end if e.shift else '16:30' }}" required></label>
+    </div>
+    <label class="check"><input type="checkbox" name="essential" {{ "checked" if e.essential }}> Emergency (essential) personnel</label>
+    <label class="check"><input type="checkbox" name="telework_eligible" {{ "checked" if e.telework_eligible }}> Telework-ready</label>
+    <div><div class="small muted">Scheduled telework days</div>
+      <div class="checkrow">{% for w in WEEKDAYS[:5] %}<label><input type="checkbox" name="telework_days" value="{{ w }}" {{ "checked" if e.telework_days and w in e.telework_days }}> {{ w }}</label>{% endfor %}</div></div>
+    <div class="pair">
+      <label>Commute (miles) <input type="number" min="0" name="commute_miles" value="{{ e.commute_miles or 0 }}"></label>
+      <label class="check"><input type="checkbox" name="commute_flood_prone" {{ "checked" if e.commute_flood_prone }}> Commute crosses flood-prone roads</label>
+    </div>
+    <label>Notes <input name="notes" value="{{ e.notes or '' }}"></label>
+    <details class="more"><summary>Leave, detail and accessibility (JSON)</summary>
+      <p class="muted small">planned_leave: a list of {"start", "end"} dates. detail: null, or {"location", "start", "end"}.
+        accessibility_needs: a list of {"type", "note"}, where type is, for example, mobility, vision, hearing or medical.</p>
+      <textarea name="advanced" rows="10" spellcheck="false">{{ advanced }}</textarea>
+    </details>
+    {% if can_edit %}<button class="primary">{{ "Add employee" if emp_id == "new" else "Save" }}</button>{% endif %}
+    </fieldset>
+  </form>
+  {% if can_edit and emp_id != "new" and not is_manager_person %}
+  <details class="more"><summary>Remove from the roster</summary>
+    <form method="post" action="/organization/employee/{{ emp_id }}/remove" class="inline">
+      <button>Remove {{ e.name }}</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endblock %}

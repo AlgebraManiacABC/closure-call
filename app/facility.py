@@ -88,8 +88,31 @@ def _pin(d: dict) -> Pin:
     return Pin(d["lat"], d["lon"], d["label"], d["time_zone"], d.get("flood_gauge_lid"))
 
 
-def load_facility(path: Path = DATA / "facility.json") -> Facility:
-    d = json.loads(path.read_text(encoding="utf-8"))
+# Edited copies saved from the Staff and facility page (app/organization.py) replace the JSON files.
+_overrides: dict[str, dict] = {}
+FACILITY_FILE, ROSTER_FILE = DATA / "facility.json", DATA / "roster.json"
+
+
+def set_override(name: str, data: dict | None):
+    if data is None:
+        _overrides.pop(name, None)
+    else:
+        _overrides[name] = data
+
+
+def facility_data() -> dict:
+    return _overrides.get("facility") or json.loads(FACILITY_FILE.read_text(encoding="utf-8"))
+
+
+def roster_data() -> dict:
+    return _overrides.get("roster") or json.loads(ROSTER_FILE.read_text(encoding="utf-8"))
+
+
+def load_facility(path: Path | None = None) -> Facility:
+    return facility_from_dict(json.loads(path.read_text(encoding="utf-8")) if path else facility_data())
+
+
+def facility_from_dict(d: dict) -> Facility:
     cw = d["commute_windows"]
     dl = d["decision_deadlines"]
     return Facility(
@@ -149,8 +172,11 @@ def _range(d: dict) -> DateRange:
     return DateRange(date.fromisoformat(d["start"]), date.fromisoformat(d["end"]))
 
 
-def load_roster(path: Path = DATA / "roster.json") -> list[Employee]:
-    d = json.loads(path.read_text(encoding="utf-8"))
+def load_roster(path: Path | None = None) -> list[Employee]:
+    return roster_from_dict(json.loads(path.read_text(encoding="utf-8")) if path else roster_data())
+
+
+def roster_from_dict(d: dict) -> list[Employee]:
     out = []
     for e in d["employees"]:
         det = e.get("detail")

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Staff and facility: Closure Call{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Staff and facility</h1>
+  <p class="muted">Who gets notified and how the facility runs. Managers and sysadmins can edit; every change goes in
+    the admin log with who made it. Notices already drafted keep the roster they were drafted from.</p>
+  {% if request.query_params.get("saved") %}<div class="flash">Saved.</div>{% endif %}
+</section>
+
+<section class="card" id="facility">
+  <h2>Facility</h2>
+  <p class="muted small">Location is set on the <a href="/locations">Change location</a> page.
+    {% if updated.facility %}Last changed by {{ updated.facility.by }}, {{ updated.facility.at|t(tz) }}.{% else %}Using the starting profile.{% endif %}</p>
+  <details class="more"><summary>{{ fac.name }} &middot; open {{ fac.hours.open }}&ndash;{{ fac.hours.close }}, {{ fac.operating_days|join(", ") }}</summary>
+  <form method="post" action="/organization/facility" class="stack">
+    <fieldset {{ "disabled" if not can_edit }} class="stack plain">
+    <label>Name <input name="name" value="{{ fac.name }}" required></label>
+    <label>Agencies (comma-separated) <input name="agencies" value="{{ fac.agencies|join(', ') }}"></label>
+    <label>Facility manager (named in every notice as the contact)
+      <select name="manager_employee_id">
+        {% for e in roster|sort(attribute="name") %}<option value="{{ e.id }}" {{ "selected" if e.id == fac.manager_employee_id }}>{{ e.name }} &middot; {{ e.title }}</option>{% endfor %}
+      </select></label>
+    <div class="pair">
+      <label>Opens <input type="time" name="open" value="{{ fac.hours.open }}" required></label>
+      <label>Closes <input type="time" name="close" value="{{ fac.hours.close }}" required></label>
+    </div>
+    <div><div class="small muted">Operating days</div>
+      <div class="checkrow">{% for w in WEEKDAYS %}<label><input type="checkbox" name="operating_days" value="{{ w }}" {{ "checked" if w in fac.operating_days }}> {{ w }}</label>{% endfor %}</div></div>
+    <div class="pair">
+      <label>Morning commute from <input type="time" name="morning_start" value="{{ fac.commute_windows.morning[0] }}" required></label>
+      <label>to <input type="time" name="morning_end" value="{{ fac.commute_windows.morning[1] }}" required></label>
+      <label>Evening commute from <input type="time" name="evening_start" value="{{ fac.commute_windows.evening[0] }}" required></label>
+      <label>to <input type="time" name="evening_end" value="{{ fac.commute_windows.evening[1] }}" required></label>
+    </div>
+    <label>Decide delays and closures by <input type="time" name="decide_by" value="{{ fac.decision_deadlines.delay_or_closure_by }}" required></label>
+    <label>Holidays (one date per line, like 2026-11-26) <textarea name="holidays" rows="4">{{ fac.federal_holidays|join("\n") }}</textarea></label>
+    {% if can_edit %}<button class="primary">Save facility</button>{% endif %}
+    </fieldset>
+  </form>
+  </details>
+</section>
+
+<section class="card" id="roster">
+  <h2>Employees ({{ roster|length }})</h2>
+  <p class="muted small">{% if updated.roster %}Last changed by {{ updated.roster.by }}, {{ updated.roster.at|t(tz) }}.{% else %}Using the starting roster.{% endif %}</p>
+  {% if can_edit %}<p><a class="button" href="/organization/employee/new">Add an employee</a></p>{% endif %}
+  {% for e in roster|sort(attribute="name") %}
+  <a class="row-link" href="/organization/employee/{{ e.id }}">
+    <span class="r-title">{{ e.name }}{% if e.id == fac.manager_employee_id %} <span class="asked">facility manager</span>{% endif %}</span>
+    <span class="r-when">{{ e.title }}{% if e.essential %} &middot; essential{% endif %}{% if e.telework_eligible %} &middot; telework{% endif %}</span>
+  </a>
+  {% endfor %}
+</section>
+{% endblock %}
