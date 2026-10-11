@@ -2,8 +2,8 @@
 
 Run from the repo root:
     python scripts/evaluate.py                                   # current pin, next operating day
-    python scripts/evaluate.py --preset winter_montana --day 2026-10-12
-    python scripts/evaluate.py --preset flood_iowa --day tomorrow --json out.json
+    python scripts/evaluate.py --lat 46.14 --lon -110.16 --day 2026-10-12
+    python scripts/evaluate.py --lat 41.84 --lon -90.70 --day tomorrow --json out.json
 """
 import argparse
 import sys
@@ -17,18 +17,19 @@ load_dotenv(ROOT / ".env", override=True)
 sys.path.insert(0, str(ROOT))
 
 from app.collect import collect  # noqa: E402
-from app.facility import load_facility  # noqa: E402
+from app.facility import load_facility, repin_to_point  # noqa: E402
 from app.rules import evaluate  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--preset")
+ap.add_argument("--lat", type=float, help="pin the facility here (with --lon)")
+ap.add_argument("--lon", type=float)
 ap.add_argument("--day", help="YYYY-MM-DD, 'today' or 'tomorrow'; default is the next operating day")
 ap.add_argument("--json", help="write inputs and recommendation to this file")
 args = ap.parse_args()
 
 facility = load_facility()
-if args.preset:
-    facility = facility.repinned_to_preset(args.preset)
+if args.lat is not None and args.lon is not None:
+    facility = repin_to_point(facility, args.lat, args.lon)
 today = datetime.now(facility.tz).date()
 day = {"today": today, "tomorrow": today + timedelta(days=1)}.get(args.day) if args.day in ("today", "tomorrow") \
     else date.fromisoformat(args.day) if args.day else facility.next_operating_day()

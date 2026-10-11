@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Change location: Closure Call{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Change location</h1>
+  <p class="muted">Now: <b>{{ facility.pin.label }}</b> ({{ facility.pin.lat }}, {{ facility.pin.lon }}).
+    The synthetic Service Center and its roster move with the pin; NWS supplies the town and time zone.</p>
+</section>
+
+<section class="card">
+  <h2>Where the weather is now</h2>
+  <p class="muted small">Active NWS warnings and advisories, refreshed every 10 minutes.</p>
+  {% for hazard, lst in spots.items() %}
+    <div class="count">{{ HAZARD_NAMES[hazard] }} ({{ lst|length }})</div>
+    {% for s in lst %}
+    <form method="post" action="/pin" class="pin-row">
+      <input type="hidden" name="lat" value="{{ s.lat }}"><input type="hidden" name="lon" value="{{ s.lon }}">
+      <button class="reason-button"><span class="r-title">{{ s.event }}</span>
+        <span class="r-when">{{ s.area_desc.split(";")[0] }}{% if ";" in s.area_desc %} and nearby{% endif %} &middot; {{ s.sender_name.replace("NWS ", "") }}</span></button>
+    </form>
+    {% else %}<p class="muted small">None active right now.</p>{% endfor %}
+  {% else %}<p class="muted">Could not load live alerts right now.</p>{% endfor %}
+</section>
+
+<section class="card">
+  <h2>Search a city</h2>
+  <form method="get" action="/locations" class="search">
+    <input name="q" value="{{ q }}" placeholder="e.g. Fargo, ND" required>
+    <button>Search</button>
+  </form>
+  {% if search_error %}<p class="bad small">{{ search_error }}</p>{% endif %}
+  {% if q and not results and not search_error %}<p class="muted small">No US places found for &ldquo;{{ q }}&rdquo;.</p>{% endif %}
+  {% for p in results %}
+  <form method="post" action="/pin" class="pin-row">
+    <input type="hidden" name="lat" value="{{ p.lat }}"><input type="hidden" name="lon" value="{{ p.lon }}">
+    <button class="reason-button"><span class="r-title">{{ p.label }}</span><span class="r-when">Pin here</span></button>
+  </form>
+  {% endfor %}
+  <p class="muted small">Place search by OpenStreetMap Nominatim.</p>
+</section>
+
+<section class="card">
+  <h2>Pick on the map</h2>
+  <p class="muted small">Tap anywhere to pin the facility there. Coloured dots are live alerts:
+    <span class="dot flood"></span>flood <span class="dot wind"></span>wind <span class="dot winter"></span>winter.</p>
+  <div id="map"></div>
+  <form method="post" action="/pin" id="map-pin" class="stack" hidden>
+    <input type="hidden" name="lat"><input type="hidden" name="lon">
+    <button class="primary big" id="map-pin-button">Pin here</button>
+  </form>
+</section>
+
+
+<script>
+(function () {
+  if (!window.L) { document.getElementById("map").innerHTML = "<p class='muted'>Map unavailable.</p>"; return; }
+  var map = L.map("map").setView([{{ facility.pin.lat }}, {{ facility.pin.lon }}], 5);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 12, attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+  var colors = { flood: "#2b6cb0", wind: "#c05621", winter: "#6b46c1" };
+  L.circleMarker([{{ facility.pin.lat }}, {{ facility.pin.lon }}], { radius: 8, color: "#1f4e3d", weight: 3, fillOpacity: .2 })
+    .addTo(map).bindTooltip("Facility now");
+  var form = document.getElementById("map-pin"), button = document.getElementById("map-pin-button");
+  var chosen = null;
+  function choose(lat, lon, label) {
+    form.lat.value = lat.toFixed(4); form.lon.value = lon.toFixed(4);
+    button.textContent = "Pin here: " + (label || lat.toFixed(3) + ", " + lon.toFixed(3));
+    form.hidden = false;
+    if (chosen) { map.removeLayer(chosen); }
+    chosen = L.marker([lat, lon]).addTo(map);
+  }
+  {{ markers|tojson }}.forEach(function (m) {
+    L.circleMarker([m.lat, m.lon], { radius: 7, color: colors[m.hazard], fillOpacity: .8 })
+      .addTo(map).bindTooltip(m.event + " · " + m.area.split(";")[0])
+      .on("click", function (e) { L.DomEvent.stopPropagation(e); choose(m.lat, m.lon, m.event); });
+  });
+  map.on("click", function (e) { choose(e.latlng.lat, e.latlng.lng); });
+})();
+</script>
+{% endblock %}

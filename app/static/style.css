@@ -128,6 +128,18 @@ details.more > summary { font-weight: 600; }
 .legend { display: flex; gap: 6px; align-items: center; font-size: .72rem; color: var(--muted); margin: 22px 0 10px; }
 .legend .hour { flex: 0 0 14px; height: 10px; }
 
+/* Location picker */
+.pin-row { margin: 6px 0; }
+.reason-button { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  text-align: left; background: #fbfcfa; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; min-height: 48px; }
+.reason-button:hover { border-color: var(--usda); }
+.reason-button .r-when { white-space: normal; }
+[hidden] { display: none !important; }
+form.search { display: flex; gap: 8px; }
+form.search input { flex: 1; min-width: 0; }
+#map { height: 360px; border-radius: 10px; border: 1px solid var(--line); margin: 8px 0; }
+.dot.flood { background: #2b6cb0; } .dot.wind { background: #c05621; } .dot.winter { background: #6b46c1; }
+
 @media (min-width: 900px) {
   main { max-width: 900px; }
 }

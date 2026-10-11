@@ -1,9 +1,9 @@
 """Full pipeline: collect live data, run the rules engine, then the Strands agent; optionally ask a question.
 
 Run from the repo root:
-    python scripts/brief.py --preset winter_montana --day 2026-10-12
-    python scripts/brief.py --preset flood_iowa --day tomorrow --ask "Should people who live near the river come in?"
-    python scripts/brief.py --preset winter_montana --day 2026-10-12 --record --decide approve --by "Facility manager"
+    python scripts/brief.py --lat 46.14 --lon -110.16 --day 2026-10-12
+    python scripts/brief.py --lat 41.84 --lon -90.70 --day tomorrow --ask "Should people who live near the river come in?"
+    python scripts/brief.py --lat 46.14 --lon -110.16 --day 2026-10-12 --record --decide approve --by "Facility manager"
 """
 import argparse
 import sys
@@ -14,12 +14,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.agent import answer_question, investigate  # noqa: E402
 from app.collect import collect  # noqa: E402
-from app.facility import load_facility  # noqa: E402
+from app.facility import load_facility, repin_to_point  # noqa: E402
 from app.record import get_store  # noqa: E402
 from app.rules import evaluate  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--preset")
+ap.add_argument("--lat", type=float, help="pin the facility here (with --lon)")
+ap.add_argument("--lon", type=float)
 ap.add_argument("--day", help="YYYY-MM-DD, 'today' or 'tomorrow'; default is the next operating day")
 ap.add_argument("--ask", action="append", default=[], help="a manager question; repeatable")
 ap.add_argument("--force", action="store_true", help="run the agent even when the posture is normal")
@@ -34,8 +35,8 @@ ap.add_argument("--db", help="'local' for the SQLite file instead of DATABASE_UR
 args = ap.parse_args()
 
 facility = load_facility()
-if args.preset:
-    facility = facility.repinned_to_preset(args.preset)
+if args.lat is not None and args.lon is not None:
+    facility = repin_to_point(facility, args.lat, args.lon)
 today = datetime.now(facility.tz).date()
 day = {"today": today, "tomorrow": today + timedelta(days=1)}.get(args.day) if args.day in ("today", "tomorrow") \
     else date.fromisoformat(args.day) if args.day else facility.next_operating_day()

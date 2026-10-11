@@ -19,6 +19,8 @@ from fastapi.templating import Jinja2Templates
 from . import service
 from .record import RecordError, get_store
 from .rules import HOUR
+from .sources import geocode
+from .sources.http import SourceError
 
 logging.basicConfig(level=logging.INFO)
 HERE = Path(__file__).resolve().parent
@@ -27,6 +29,7 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 store = get_store(os.environ.get("DB") or None)
 state = service.AppState()
+state.restore(store)  # survive restarts and redeploys at the last evaluated location
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 POSTURE_NAMES = {"normal": "Normal operations", "unscheduled_leave": "Unscheduled leave / telework",
@@ -137,11 +140,35 @@ def manager_home(request: Request):
                   next_day=f.next_operating_day(), tomorrow=today + timedelta(days=1), today=today)
 
 
-@app.post("/preset")
-def choose_preset(preset: str = Form(...)):
-    if preset not in state.facility.presets:
-        return back("/manager", "Unknown location")
-    state.set_preset(preset)
+HAZARD_NAMES = {"flood": "Flooding", "wind": "High wind", "winter": "Winter weather"}
+
+
+@app.get("/locations", response_class=HTMLResponse)
+def locations(request: Request, q: str = ""):
+    results, search_error = [], None
+    if q.strip():
+        try:
+            results = geocode.search(q.strip()[:120])
+        except SourceError as e:
+            search_error = f"Search is unavailable right now ({e})"[:200]
+    try:
+        spots = service.live_hotspots()
+    except SourceError:
+        spots = {}
+    markers = [{"hazard": h, "event": s.event, "area": s.area_desc, "lat": s.lat, "lon": s.lon,
+                "severity": s.severity} for h, lst in spots.items() for s in lst]
+    return render(request, "locations.html", facility=state.facility, q=q, results=results,
+                  search_error=search_error, spots=spots, markers=markers, HAZARD_NAMES=HAZARD_NAMES)
+
+
+@app.post("/pin")
+def pin(lat: float = Form(...), lon: float = Form(...)):
+    if not (17 <= lat <= 72 and -180 <= lon <= -64):
+        return back("/locations", "Pick a point in the United States")
+    try:
+        state.set_point(round(lat, 4), round(lon, 4))
+    except SourceError:
+        return back("/locations", "NWS has no forecast for that point; pick a point on US land")
     return back("/manager")
 
 

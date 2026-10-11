@@ -4,16 +4,7 @@
   <h1>{{ facility.display_name }}</h1>
   <p class="muted">{{ facility.pin.lat }}, {{ facility.pin.lon }} &middot; {{ facility.pin.time_zone }} &middot;
     open {{ facility.open.strftime("%H:%M") }}&ndash;{{ facility.close.strftime("%H:%M") }} &middot; {{ state.roster|length }} people on roster</p>
-  <form method="post" action="/preset" class="inline">
-    <label>Location
-      <select name="preset" onchange="this.form.submit()">
-        {% for key, p in facility.presets.items() %}
-        <option value="{{ key }}" {{ 'selected' if facility.pin.label == p.label }}>{{ p.label }} ({{ key.split('_')[0] }})</option>
-        {% endfor %}
-      </select>
-    </label>
-    <noscript><button>Move</button></noscript>
-  </form>
+  <a class="button" href="/locations">Change location</a>
 </section>
 
 <section class="card">

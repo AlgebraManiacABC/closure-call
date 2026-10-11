@@ -4,19 +4,13 @@
   "agencies": ["FSA", "NRCS", "RD"],
   "manager_employee_id": "E001",
 
+  "_pin_note": "Starting location for a fresh install. Managers move it from the Change location page; after that the app returns to the last evaluated location.",
   "pin": {
-    "preset": "flood_iowa",
     "lat": 41.8371,
     "lon": -90.6986,
     "label": "Grand Mound, IA",
     "time_zone": "America/Chicago",
     "flood_gauge_lid": "DEWI4"
-  },
-  "presets": {
-    "flood_iowa": {"lat": 41.8371, "lon": -90.6986, "label": "Grand Mound, IA", "time_zone": "America/Chicago",
-                   "flood_gauge_lid": "DEWI4"},
-    "wind_carolina": {"lat": 35.876, "lon": -82.7098, "label": "Marshall, NC", "time_zone": "America/New_York"},
-    "winter_montana": {"lat": 47.6246, "lon": -112.8353, "label": "Augusta, MT", "time_zone": "America/Denver"}
   },
 
   "hours": {"open": "08:00", "close": "16:30"},

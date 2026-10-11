@@ -26,7 +26,6 @@ class Pin:
     lon: float
     label: str
     time_zone: str
-    preset: str | None = None
     flood_gauge_lid: str | None = None  # NWPS gauge to watch; None = nearest with flood stages
 
 
@@ -37,7 +36,6 @@ class Facility:
     agencies: list[str]
     manager_employee_id: str
     pin: Pin
-    presets: dict[str, Pin]
     open: time
     close: time
     operating_days: list[str]
@@ -76,8 +74,6 @@ class Facility:
     def repinned(self, pin: Pin) -> "Facility":
         return replace(self, pin=pin)
 
-    def repinned_to_preset(self, name: str) -> "Facility":
-        return replace(self, pin=self.presets[name])
 
 
 def repin_to_point(facility: Facility, lat: float, lon: float) -> Facility:
@@ -88,8 +84,8 @@ def repin_to_point(facility: Facility, lat: float, lon: float) -> Facility:
     return facility.repinned(Pin(lat, lon, label, info.time_zone))
 
 
-def _pin(d: dict, preset: str | None = None) -> Pin:
-    return Pin(d["lat"], d["lon"], d["label"], d["time_zone"], preset or d.get("preset"), d.get("flood_gauge_lid"))
+def _pin(d: dict) -> Pin:
+    return Pin(d["lat"], d["lon"], d["label"], d["time_zone"], d.get("flood_gauge_lid"))
 
 
 def load_facility(path: Path = DATA / "facility.json") -> Facility:
@@ -99,7 +95,6 @@ def load_facility(path: Path = DATA / "facility.json") -> Facility:
     return Facility(
         id=d["id"], name=d["name"], agencies=d["agencies"], manager_employee_id=d["manager_employee_id"],
         pin=_pin(d["pin"]),
-        presets={k: _pin(v, k) for k, v in d["presets"].items()},
         open=_hm(d["hours"]["open"]), close=_hm(d["hours"]["close"]),
         operating_days=d["operating_days"],
         morning_commute=(_hm(cw["morning"][0]), _hm(cw["morning"][1])),

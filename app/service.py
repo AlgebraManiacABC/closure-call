@@ -11,10 +11,11 @@ from datetime import date, datetime, timedelta, timezone
 
 from .agent import answer_question, investigate
 from .collect import collect
-from .facility import Facility, Pin, load_facility, load_roster
+from .facility import Facility, Pin, load_facility, load_roster, repin_to_point
 from .notify import Decided, build_package
 from .record import RecordError, Store
 from .rules import Inputs, evaluate
+from .sources import hotspots
 
 log = logging.getLogger("closure_call")
 
@@ -61,17 +62,41 @@ class AppState:
     def manager(self):
         return next(e for e in self.roster if e.id == self.facility.manager_employee_id)
 
-    def set_preset(self, name: str):
-        self.facility = self.facility.repinned_to_preset(name)
+    def set_point(self, lat: float, lon: float):
+        """Pin the facility anywhere in the US; NWS supplies the town name and time zone."""
+        self.facility = repin_to_point(load_facility(), lat, lon)
+
+    def restore(self, store: Store):
+        """After a restart or redeploy, return to the location of the most recent evaluation."""
+        try:
+            latest = store.history(limit=1)
+            if latest:
+                self.facility = facility_for(store.load(latest[0]["evaluation_id"])["inputs"])
+        except Exception:
+            log.exception("could not restore the last location; using the default")
+
+
+_hotspot_cache: tuple[float, dict] | None = None
+_hotspot_lock = threading.Lock()
+
+
+def live_hotspots(max_age_s: int = 600) -> dict:
+    """Where flood, wind and winter alerts are active right now, cached for 10 minutes."""
+    global _hotspot_cache
+    with _hotspot_lock:
+        if _hotspot_cache and _time.time() - _hotspot_cache[0] < max_age_s:
+            return _hotspot_cache[1]
+        found = hotspots.find(per_hazard=5)
+        _hotspot_cache = (_time.time(), found)
+        return found
 
 
 def facility_for(inputs: Inputs) -> Facility:
     """The facility as it was pinned for a recorded evaluation."""
     f = load_facility()
     label = inputs.facility_label.split(", ", 1)[1] if ", " in inputs.facility_label else inputs.facility_label
-    preset = next((p for p in f.presets.values() if abs(p.lat - inputs.lat) < 1e-4 and abs(p.lon - inputs.lon) < 1e-4),
-                  None)
-    return f.repinned(preset or Pin(inputs.lat, inputs.lon, label, inputs.time_zone))
+    same_as_default = abs(f.pin.lat - inputs.lat) < 1e-4 and abs(f.pin.lon - inputs.lon) < 1e-4
+    return f if same_as_default else f.repinned(Pin(inputs.lat, inputs.lon, label, inputs.time_zone))
 
 
 # ---------- steps ----------
