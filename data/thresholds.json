@@ -78,12 +78,12 @@
     "WINTER-ALERT-WARN": {
       "hazard": "winter", "events": ["Blizzard Warning", "Ice Storm Warning", "Winter Storm Warning"], "level": 2,
       "extend_by_road_recovery": true,
-      "source": "NWS has judged warning-level snow or ice likely or occurring for this area. Roads stay hazardous for road_recovery_hours after the warning ends."
+      "source": "NWS has judged warning-level snow or ice likely or occurring for this area. Roads stay hazardous for at least {road_recovery_hours} hours after the warning ends, while they are treated."
     },
     "WINTER-ALERT-ADV": {
       "hazard": "winter", "events": ["Winter Weather Advisory"], "level": 1,
       "extend_by_road_recovery": true,
-      "source": "NWS has issued a Winter Weather Advisory for this area. Roads stay slick for road_recovery_hours after it ends."
+      "source": "NWS has issued a Winter Weather Advisory for this area. Roads stay slick for at least {road_recovery_hours} hours after it ends."
     },
     "COLD-ALERT-WARN": {
       "hazard": "winter", "events": ["Extreme Cold Warning", "Wind Chill Warning"], "level": 2,

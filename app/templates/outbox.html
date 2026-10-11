@@ -11,7 +11,7 @@
   {% if e.kind == "manager_alert" %}
     <h2>Alert to the facility manager</h2>
     <p class="muted small">{{ e.at|t(tz) }} &middot; {{ e.payload.reason }}</p>
-    <div class="sms"><div class="meta">Text to {{ e.payload.to }} ({{ e.payload.phone }})</div>{{ e.payload.body }}</div>
+    <div class="sms"><div class="meta">Text to {{ e.payload.to }} ({{ e.payload.phone }})</div>{{ e.payload.body|linkify }}</div>
   {% else %}
     {% set msgs = e.payload.messages %}
     <h2>{{ msgs|length }} messages &middot; {{ e.posture|replace("_", " ") }}</h2>

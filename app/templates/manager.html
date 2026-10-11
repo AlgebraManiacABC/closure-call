@@ -25,9 +25,12 @@
 
 {% if alerts %}
 <section class="card">
-  <h2>Recent alerts to you</h2>
+  <h2>Waiting for your decision</h2>
   {% for a in alerts %}
-  <div class="sms"><div class="meta">Text to {{ a.payload.to }} &middot; {{ a.at|t(facility.pin.time_zone) }}</div>{{ a.payload.body }}</div>
+  <div class="alert-item">
+    <div class="sms"><div class="meta">Text to {{ a.payload.to }} &middot; {{ a.at|t(facility.pin.time_zone) }}</div>{{ a.payload.body|linkify }}</div>
+    <a class="button primary" href="/e/{{ a.evaluation_id }}">Review and decide</a>
+  </div>
   {% endfor %}
 </section>
 {% endif %}

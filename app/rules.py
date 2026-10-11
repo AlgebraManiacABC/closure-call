@@ -224,6 +224,18 @@ def _margin(op: str, v: float, thr: float) -> float:
 
 # ---------- derived hourly fields ----------
 
+class _Keep(dict):
+    def __missing__(self, key):  # leave unknown {names} as written
+        return "{" + key + "}"
+
+
+def _source(rule: dict, th: dict) -> str:
+    """A rule's source text with {setting} placeholders filled from the same thresholds file,
+    so explanations state the value ("3 hours"), not the setting's name."""
+    values = {k: v["value"] for k, v in th.get("derived_fields", {}).items() if isinstance(v, dict) and "value" in v}
+    return rule["source"].format_map(_Keep(values))
+
+
 def _storm_totals(hours: list[HourIn], field: str, recovery_h: int) -> list[float | None]:
     """12-hour accumulation as of the last hour with any, counted while falling or within
     `recovery_h` hours after it stops; 0 otherwise. None where there is no forecast data."""
@@ -312,7 +324,7 @@ def evaluate(inputs: Inputs, thresholds: dict | None = None, rules_version: str 
                     rule_id=rid, hazard=rule["hazard"], level=rule["level"], kind="field", field=rule["field"],
                     value=round(v, 2), threshold=thr, unit=rule["unit"], margin=_margin(rule["op"], v, thr),
                     first_hour=rows[i]["start"], last_hour=rows[i]["start"],
-                    source_key=FIELD_SOURCE[rule["field"]], threshold_source=rule["source"]))
+                    source_key=FIELD_SOURCE[rule["field"]], threshold_source=_source(rule, th)))
 
     alerts = [a for a in inputs.alerts if a.hazard and a.certainty != "Unlikely"]
     recovery = timedelta(hours=th["derived_fields"]["road_recovery_hours"]["value"])
@@ -328,7 +340,7 @@ def evaluate(inputs: Inputs, thresholds: dict | None = None, rules_version: str 
                         rule_id=rid, hazard=rule["hazard"], level=rule["level"], kind="alert",
                         first_hour=rows[i]["start"], last_hour=rows[i]["start"], alert_id=a.id,
                         alert_event=a.event, alert_certainty=a.certainty, source_key="alerts",
-                        threshold_source=rule["source"]))
+                        threshold_source=_source(rule, th)))
 
     level = {i: max((f.level for f in per_hour[i]), default=0) for i in in_window}
     hazardous = [i for i in in_window if level[i] >= 2]
@@ -410,7 +422,7 @@ def evaluate(inputs: Inputs, thresholds: dict | None = None, rules_version: str 
         checks.append(Check(rule_id=rid, hazard=rule["hazard"], field=rule["field"], level=rule["level"],
                             threshold=thr, unit=rule["unit"], peak=None if peak is None else round(peak, 2),
                             peak_hour=peak_hour, margin=m, crossed=m is not None and m >= 0,
-                            threshold_source=rule["source"]))
+                            threshold_source=_source(rule, th)))
 
     hazards = ("flood", "wind", "winter")
     hourly = [{"start": rows[i]["start"], "level": level[i],

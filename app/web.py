@@ -12,6 +12,7 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form, Request
+from markupsafe import Markup, escape
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -156,11 +157,40 @@ def set_role(name: str, request: Request):
     return resp
 
 
+def pending_alerts(facility_id: str, limit: int = 3) -> list[dict]:
+    """Alerts to the manager that still need a decision. An alert drops off once its evaluation is
+    decided, or once any decision for the same day is recorded after it (e.g. after a fresh check)."""
+    decided_eids, decided_days = set(), {}
+    for h in store.history(facility_id, limit=200):
+        if h["decision"]:
+            decided_eids.add(h["evaluation_id"])
+            decided_days[h["day"]] = max(decided_days.get(h["day"], ""), h["decision"]["at"])
+    out = []
+    for a in store.outbox(100):
+        if a["kind"] != "manager_alert" or a["evaluation_id"] in decided_eids:
+            continue
+        if decided_days.get(a["day"], "") > a["at"]:
+            continue
+        out.append(a)
+    return out[:limit]
+
+
+_URL_RE = re.compile(r"https?://[^\s<]+")
+
+
+def linkify(text: str) -> Markup:
+    """Escape text, then turn http(s) URLs into links (used for the simulated texts)."""
+    return Markup(_URL_RE.sub(lambda m: f'<a href="{m.group(0)}">{m.group(0)}</a>', str(escape(text))))
+
+
+templates.env.filters["linkify"] = linkify
+
+
 @app.get("/manager", response_class=HTMLResponse)
 def manager_home(request: Request):
     f = state.facility
     recent = store.history(f.id, limit=8)
-    alerts = [e for e in store.outbox(30) if e["kind"] == "manager_alert"][:3]
+    alerts = pending_alerts(f.id)
     today = datetime.now(f.tz).date()
     return render(request, "manager.html", facility=f, recent=recent, alerts=alerts,
                   next_day=f.next_operating_day(), tomorrow=today + timedelta(days=1), today=today)
